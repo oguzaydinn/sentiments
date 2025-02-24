@@ -1,0 +1,17 @@
+{
+  "name": "swe599",
+  "module": "index.ts",
+  "type": "module",
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "@types/node": "^22.13.5",
+    "axios": "^1.7.9",
+    "dotenv": "^16.4.7",
+    "snoowrap": "^1.23.0"
+  }
+}
