@@ -1,15 +1,9 @@
-# swe599
+# Sentiments
 
-To install dependencies:
+A sentiment analysis tool that analyzes netizen sentiment on certain news and events
 
-```bash
-bun install
-```
+Project uses Typescript, bun, snoowrap and axios as of now.
 
-To run:
-
-```bash
-bun run index.ts
-```
-
-This project was created using `bun init` in bun v1.2.1. [Bun](https://bun.sh) is a fast all-in-one JavaScript runtime.
+v0.0.1
+Searches the searchQuery term set at reddit.ts file in reddit r/artificial, r/agi, r/MachineLearning, r/OpenAI and saves data to reddit_comments.json
+example.json file shows several example comments that require further formatting for sentiment analysis.

@@ -27,5 +27,4 @@ async function run() {
   console.log("✅ Done! All comments saved.");
 }
 
-// Execute the script
 run();

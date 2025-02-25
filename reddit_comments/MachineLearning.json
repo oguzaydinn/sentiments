@@ -1,0 +1,448 @@
+{
+  "[D] Have we hit a scaling wall in base models? (non reasoning)": {
+    "post_id": "1iupnet",
+    "post_url": "https://www.reddit.com/r/MachineLearning/comments/1iupnet/d_have_we_hit_a_scaling_wall_in_base_models_non/",
+    "num_comments": 27,
+    "comments": [
+      {
+        "text": "I'd argue that we've squeezed most of the juice we can out of the pre-training stage, and even the instruction tuning is plateauing in innovation and improvement. Our models can only get so smart through mimicking training data. The frontier with the highest reward to effort ratio at the moment is reinforcement learning, which is what we're using to make \"reasoning models\".\n\nI should counter though, that I don't think we've reached the end of scaling parameter count, I just think there's a bit more pressure on the industry now to decrease costs so that model providers have a road to profitability. The best models will still be very large.",
+        "score": 112
+      },
+      {
+        "text": "Diminishing returns but not wall",
+        "score": 69
+      },
+      {
+        "text": "Grok 3 was trained on a 100k gpu cluster, yes. But I doubt they used 100k GPUs on a single training run.",
+        "score": 32
+      },
+      {
+        "text": "I think you misunderstood the pre training scaling law.\n\nIt is entirely about how much information dense training data you can look at in a reasonable time frame. That’s it. The scaling law is still there. If there was more such information dense content to look at adding more compute would allow you to look at it. \n\nThe problem is that there is no scaling law for the difficulty in acquiring such content. We scaled compute to the point where all easily consumed data can be looked at during training. There certainly is a ton more information that humans have access to but it’s just not accessible easily for many different reasons. \n\nThe scaling law has stopped being useful for improving model performance due to a lack of data to feed it not because the law no longer applies. It still applies but now it just leads to faster training time instead as you can look at all available data faster.",
+        "score": 10
+      },
+      {
+        "text": "I think we've approached a wall on good data for LLMs - in earlier iterations, more compute allowed us to make better use of more and more data, and that gave big improvements; but right now all the big organizations are using \\*all\\* the data that's reasonably available in the world, and finding out a new or unreasonable source of data adds just a bit more, not double or 10x the data; so once the LLM pretraining is able to effectively learn almost all that can be learned from that pile of unlabeled data, spending extra compute to look at the same things more carefully has diminishing returns.\n\nAlso, we've hit some limits on the demand side - we have hit the model size where people care a lot not only about training costs but about inference costs, people want models that are cost-effective to run, which restricts the widespread commercial use of something that would have 10x or 100x more parameters than the currently largest models.",
+        "score": 9
+      },
+      {
+        "text": "CEO advertised their product. Water is wet. More on news at 11.",
+        "score": 39
+      },
+      {
+        "text": "Jump from GPT3 to GPT4 required 100x more compute. 10x is about a 3 times larger model which isn't much.\n\nAnd as far as I can tell Grok 3 base is better than GPT4 base.\n\nAlso, we don't know all the training tricks and architectural improvements OpenAI used. It's possible that XAI team didn't develop the best model they could given compute.",
+        "score": 17
+      },
+      {
+        "text": "Forget corporate announcements, check published research that is actually reproducible, everything else is for-profit BS.",
+        "score": 11
+      },
+      {
+        "text": "It doesn't seem surprising that at some point you have learned everything you can from text. I mean, take a 1GB LLM and use it to create 10 GB of text. How much information is in those 10 GB? Obviously 1 GB max.\n\nSo diminishing returns from training on human text aren't a surprise. At some point, there's just little valuable left to learn.\n\nOf course, information is a bit tricky. The rules of games like chess or go contain all possible board states. All you need to do to play such games perfectly is \"unpack the archive\". In a sense, that's what reasoning is all about.",
+        "score": 6
+      },
+      {
+        "text": "There is only so much text you can steal from the internet.  Especially from the perspective of how much of it may be redundant or worse, AI generated now.",
+        "score": 7
+      },
+      {
+        "text": "How can it be agi ?\n\nAgi is very far off..this is the world of narrow highly efficient ai's.",
+        "score": 4
+      },
+      {
+        "text": "There's more to how good a model is than the amount of compute that went into training it.",
+        "score": 2
+      },
+      {
+        "text": "Now when meta, grok, cloude, chatgpt, mistral etc invested ungodly amounts into hardware they are realizing that entire content scraped from internet (plus 150+ terabytes of books and \"offline content\") doesn't really cover what they actually need - which is more content.",
+        "score": 2
+      },
+      {
+        "text": "There's only so much text around, only so much of which is good, and there's only so much you can learn from text, at least by predicting text.\n\n\nWhoever believed tech CEOs that scaling (bigger models on more data only at pretraining by means of next-token-prediction) was all we needed, has been tricked.\nBut scaling has been useful and will be useful again.",
+        "score": 2
+      },
+      {
+        "text": "Expecting LLM to deliver intelligence through scaling or otherwise is insanity to start with",
+        "score": 2
+      },
+      {
+        "text": "It does seem like we’ve hit diminishing returns on raw scale alone. The shift in focus from ‘bigger models’ to ‘better reasoning’ suggests scaling laws might not be as exponential as we thought—or at least, that cost/benefit isn't worth it past a certain point.\n\nThat said, it’s also possible that optimization and architectural improvements (like Mixture of Experts, better token efficiency, or even neurosymbolic approaches) are just more effective paths forward.\n\nThe silence from OpenAI and Anthropic is interesting, though. Maybe they’ve realized that brute-force scaling isn’t enough to push the next breakthrough—or that we're closer to the compute ceiling than they expected.",
+        "score": 3
+      },
+      {
+        "text": "Scaling it is asymptotic, in ML there are typically upper bounds placed on it by data quality. Those last few percent will require exponential training.\n\nWe've moved beyond \"scaling is all you need\" a while ago though. New models are used to train better models. Grok will be permanently 10+ months behind the SOTA models even if Elon hired industry leaders.",
+        "score": 2
+      },
+      {
+        "text": "I don't think so. I think with synthetic data and more compute we will keep scaling. I expect at least one or two more generations where raw compute increase is still very important.",
+        "score": 1
+      },
+      {
+        "text": "Models can scale infinitely, so far as we can tell. As long as there is new high quality data that provides support over parts of a distribution previously uncovered by the model, that model will get better in some measurable way. The real wall is that these models aren't spontaneously developing true reasoning skills. Neural networks are universal function approximators and it looks like if you feed them enough text they eventually have to approximate some underlying reasoning primitives that are sufficient for predicting the next token. And you can even search over those reasoning primitives for some problem! That's what o3 seems to be doing at a high level. But approximating some reasoning primitives with a transformer or whatever doesn't seem to provide you the juice necessary for AGI. ",
+        "score": 1
+      },
+      {
+        "text": "Thats the entire reason why GRPO came in right?  \nand the entire conundrum about inference time compute and large \"Reasoning\" models?",
+        "score": 1
+      },
+      {
+        "text": "I'm quite confident that all the low hanging fruits (with LLM and pretraining are plucked). We are going to stay at this level for few years *unless a we find a new paradigm*. \n\nWith so much money flowing into AI, I think it is perfect time to build and sell \"Agents\" based on LLMs.",
+        "score": 1
+      },
+      {
+        "text": "We have to distinguish gpu count and model size. Considerations like batch size and data parallelism make it impossible to know without more data.",
+        "score": 1
+      },
+      {
+        "text": "Well, scaling law says we need to scale model size, computing, and dataset. As Ilya said last year, we ran out of data, we had only one internet, and we already processed it.\nSo further scaling in model size and computing does not benefit if we can't find like 10× larger data source than current internet.",
+        "score": 1
+      },
+      {
+        "text": "It's not a mystery at all.. it's well known that the models can keep scaling, that's not the issue.. it's GPU requirements, running 30 H100 GPU cluster to serve just a few users. No one is going to pay that, plus it's extremely slooow. \n\n\nIt's not like 1T models don't exist, it's that they are used to generate data for distillation.. \n\n\nIt's $$$ not model size that's the issue.. that's the real reason why we have MoE and reasoning. They perform better with less VRAM ",
+        "score": 1
+      },
+      {
+        "text": "wasn't this clear already? yes, this was evident since we started focusing on test-time compute",
+        "score": 1
+      },
+      {
+        "text": "Conventional wisdom says you need 10x compute to get the next 10%. It's been true for the past few years, yes. It's not a wall, but it's also really ducking expensive. ",
+        "score": 0
+      },
+      {
+        "text": "My speculation:\n\nTo train better reasoning models, you need huge reasoning datasets. The big players are in a good position to generate synthetic reasoning datasets, since they already have the capability to do so internally at-cost.\n\nThere may be scaling issues. It could be that just increasing the size of the dataset does not increase the reliability of the reasoning past a certain point (think about how the samplers work right now). It's almost certain that they are running large scale experiments to figure this out right now. The silence is because the results of those experiments are still largely TBD.",
+        "score": 0
+      }
+    ]
+  },
+  "[D] \"Grok\" means way too many different things": {
+    "post_id": "1dqpyb3",
+    "post_url": "https://www.reddit.com/r/MachineLearning/comments/1dqpyb3/d_grok_means_way_too_many_different_things/",
+    "num_comments": 34,
+    "comments": [
+      {
+        "text": "The act of grokking was introduced in Heinlein's Stranger in a Strange Land. All other uses are categorical errors.",
+        "score": 349
+      },
+      {
+        "text": "Just go read stranger in a strange land and you'll understand why they chose \"grok\" in those papers.",
+        "score": 99
+      },
+      {
+        "text": "Hope this helps. https://en.m.wikipedia.org/wiki/Grok",
+        "score": 38
+      },
+      {
+        "text": "To be fair the problem seems to be Musk (the grokking paper came before Twitter's Grok and xai for explainable AI came before his xAI)",
+        "score": 94
+      },
+      {
+        "text": "(no one tell OP how overloaded the term \"bias\" is)",
+        "score": 19
+      },
+      {
+        "text": "I’m the first author of the original grokking paper. During the overfitting phase of training, many of the networks reached 100% accuracy on the training set but 0% accuracy on the validation set. Which meant the networks had memorized the training data but didn’t really *understand* it yet. Once they later reached the understanding phase and got to 100% on the validation data, a very interesting thing happened. The final unembedding layers of the networks took on the mathematical structures of the equations we were trying to get them to learn. For modular arithmetic, the unembeddings organized the numbers in a circle with the highest wrapping back around to 0. In the network that was learning how to compose permutations of S5, the unembeddings took on the structure of subgroups and cosets in S5. \n\nIn other words, the networks transitioned from the memorization phase to the actual understanding phase by literally *becoming* the mathematical structures they were learning about. This is why I liked the word “grokking” for this phenomenon. Robert Heinlein coined the word “grok” in his book, Stranger in a Strange land, and he explained it like this:\n\n“‘Grok’ means to understand so thoroughly that the observer becomes a part of the observed-to merge, blend, intermarry, lose identity in group experience.”\n\nI thought that description did a great job of capturing the difference between the network merely memorizing the training data vs understanding that data so well that it *became* the underlying mathematical structure that generated the data in the first place. \n\nAs for Twitter’s “Grok”, I guess Elon just wanted to borrow the notoriety of the grokking paper? He hired one of my co-authors from the paper to run his lab and then named his product after the grokking phenomenon despite it having nothing to do with the grokking phenomenon. I don’t know Elon personally but many people I know who know him well have said they think he has narcissistic personality disorder and that that’s why he spends so much time and energy trying to borrow or steal the notoriety of others. He didn’t found half the companies he claims to have. And when he tried to muscle his way into being the CEO of OpenAI, the board didn’t want him, so he got mad and pulled out of OpenAI entirely and decided to make Tesla into a competitor AI company. He claimed it was because he was scared of AGI, but that was just his public lie to hide his shame about being rejected for the OpenAI CEO role. Anyway, now he’s hopping mad that OpenAI became so successful after he left, and his own AI projects are just trying to catch up. He’s an unhappy man and he spends more time lying to the public to try to look successful than he does actually accomplishing things on his own. I do think he’s smart and driven and I hope he gets the therapy he needs, so he could put his energy toward actually creating instead of wasting it on cultivating the public image of “a successful creator”.",
+        "score": 22
+      },
+      {
+        "text": "[[\n In Heinlein's invented Martian language, \"grok\" literally means \"to drink\" and figuratively means \"to comprehend\", \"to love\", and \"to be one with\".\n]]\n\nhttps://en.wikipedia.org/wiki/Stranger_in_a_Strange_Land\n\nWhile we're at it, for \"meme\", check :\n\nhttps://en.wikipedia.org/wiki/The_Selfish_Gene",
+        "score": 6
+      },
+      {
+        "text": "As far as I know the only meaning of grok is \"understand.\" Product names don't matter",
+        "score": 17
+      },
+      {
+        "text": "It comes from a sci-fi novel and was intentionally an uwu/vague/philosophical notion. Then it was picked up by hacker culture, where we were just having fun and didn't really need to give a damn about exact definitions. It's not supposed to be a powerfully technical term.",
+        "score": 15
+      },
+      {
+        "text": "grok means to grasp intuitively, and has so for decades",
+        "score": 11
+      },
+      {
+        "text": "STEM people in general (and CS people in particular, and AI/ML people in ssuper particular) love to show off how \"clever\" they are with acronyms or overloading already well-defined terms (especially from other fields). It's frankly annoying and causes unnecessary confusion.",
+        "score": 23
+      },
+      {
+        "text": "It's a stupid term that doesn't add to our understanding",
+        "score": 8
+      },
+      {
+        "text": "Can we please not condescend the field with this kind of puerile language? We already have double descent; just use a variation of that for this adjacent phenomenon.",
+        "score": 13
+      },
+      {
+        "text": "I think the usage of the word grok may have increased (though... has it? didn't you at least see the Grokking algorithms series of books?), but the underlying meaning hasn't really. They more or less seem to mean the same thing.\n\nWords like \"kernels\" have been *overloaded* in machine learning - actually meaning different things.",
+        "score": 3
+      },
+      {
+        "text": "Citation for overtraining generalization? That would be mind blowing for me, but also answer a pretty major puzzle about deep learning for me.",
+        "score": 3
+      },
+      {
+        "text": "Oh yeah the word \"ass\" confused the hell out of me when I first came to the US too.",
+        "score": 8
+      },
+      {
+        "text": "I still don't understand the difference between grok and double descent - not to mention that double descent is quite a misnomer in it's own right",
+        "score": 6
+      },
+      {
+        "text": "I physically cringe everytime I read this word in actual usage. Just awful aesthetically",
+        "score": 4
+      },
+      {
+        "text": "Sorry, I couldn’t grok your post.",
+        "score": 2
+      },
+      {
+        "text": "Since no one else mentioned it, I'll mention there is also this, which even though probably originates from stranger, can create a different reference point for people, coming to mean \"to parse\", \"search through\", or something similar.\n\n[https://manpages.org/grok](https://manpages.org/grok)\n\n    grok [-d] -f configfile\n    \n    DESCRIPTION\n    \n    Grok is software that allows you to easily parse logs and other files. With grok, you can turn unstructured log and event data into structured data.\n    The grok program is a great tool for parsing log data and program output. You can match any number of complex patterns on any number of inputs (processes and files) and have custom reactions.\n    \n    HISTORY\n    \n           grok was originally in perl, then rewritten in C++ and Xpressive (regex), then rewritten in C and PCRE.\n    \n    AUTHOR\n    \n           grok was written by Jordan Sissel.\n    \n        2009-12-25   GROK(1)\n\nIt appears earlier as a verb meaning \"to understand\" in other man pages, here intended simply as \"to recognize\", I guess:\n\n         The program doesn't grok FORTRAN. It should be able to figure FORTRAN by\n         seeing some keywords which appear indented at the start of line.  Regular\n         expression support would make this easy.\n    \n    .....\n    \n         This manual page, and particularly this section, is too long.\n    \n    \n         You can obtain the original author's latest version by anonymous FTP on\n         \n    ftp.astron.com\n     in the directory \n    /pub/file/file-X.YY.tar.gz\n    \n    FreeBSD 4.3       December 8, 2000    FreeBSD 4.3\n    AVAILABILITY",
+        "score": 2
+      },
+      {
+        "text": "I thought Grok was a meme from the emperor's new groove where the character named Grok says \"oh yeah, it's all coming together.\" no?",
+        "score": 2
+      },
+      {
+        "text": "Grok has only ever meant one thing, and was defined by Robert Heinlein.",
+        "score": 2
+      },
+      {
+        "text": "[the grokking paper](https://arxiv.org/abs/2201.02177)",
+        "score": 3
+      },
+      {
+        "text": "It's even worse. Before these, programmers were using \"grok\" in everyday language whenever they wanted to say \"understand\" by first demoting \"understand\" to \"kind of get\". It was so cringeworthy.",
+        "score": 2
+      },
+      {
+        "text": "i am sorry you feel this way",
+        "score": 3
+      },
+      {
+        "text": "You will be mad when you learn about the existence of grok patterns haha.  \nThey are used for log parsing.",
+        "score": 1
+      },
+      {
+        "text": "Grok is also used as a tunneling system to share local machines on public internet as in ngrok or zrok",
+        "score": 1
+      },
+      {
+        "text": "It means \"to drink\"",
+        "score": 1
+      },
+      {
+        "text": "[removed]",
+        "score": 1
+      },
+      {
+        "text": "To grok means to understand. I don’t know what other meanings are there nor do I care to know. ",
+        "score": 1
+      },
+      {
+        "text": "This is funny because the original use is that it's a Marian word that is impossible to truly grasp because it's so loaded with meanings.",
+        "score": 1
+      },
+      {
+        "text": "The grokking phenomenon doesn't do what you think it does, as far as I know. It is the effect of regularization, not of overfitting. You take a super overfit neural network, and regularize it until it finds a generalizable structure that still perfectly agrees with the training set.",
+        "score": 1
+      },
+      {
+        "text": "Is this about double descent?",
+        "score": 0
+      },
+      {
+        "text": "🧑‍💻 🧍🏼‍♂️🚶🏼‍♂️‍➡️🚶🏼‍♂️‍➡️🏡 🚶🏼‍♂️‍➡️👉🌱",
+        "score": -8
+      }
+    ]
+  },
+  "xAI releases Grok-1 [N]": {
+    "post_id": "1bh7yc4",
+    "post_url": "https://www.reddit.com/r/MachineLearning/comments/1bh7yc4/xai_releases_grok1_n/",
+    "num_comments": 9,
+    "comments": [
+      {
+        "text": "A very bloated model; will probably end up forgetten like Falcon-180B.\n\nGood on them for releasing it though.",
+        "score": 193
+      },
+      {
+        "text": "I will commend them for doing this and hope that others follow. That being said it looks like it was never meant to but used by other people. Perhaps some smaller versions will be released. Would be fun to play with. I'm happy they did release it even if it's too large and the documentation is sparse",
+        "score": 110
+      },
+      {
+        "text": "Kudos to Elon! Anybody else would embarased to release such a low performing and bloated model.",
+        "score": 242
+      },
+      {
+        "text": "I don't think it is better than mistral 70B.",
+        "score": 12
+      },
+      {
+        "text": "I guess it's not a lama2-70B finetune as all the Reddit experts were telling me.",
+        "score": 82
+      },
+      {
+        "text": "[deleted]",
+        "score": 27
+      },
+      {
+        "text": "Wow can’t wait to Grok out some X’s to send out to my legions of X Premium followers, such as Anna736639999744 and GregHeilH88",
+        "score": 2
+      },
+      {
+        "text": "I see zero use case for Grok apart from echoing the sentiments of X fanbois in an unfiltered manner, which does hold some significance compared to GPT. However, if Grok were to reach the GPT's extensive web dataset level, it could become a significant advancement, akin to the recent progress made with Elon Musk's Starship. This progress could bring Elon's vision of universal basic income closer to reality. With closed and censored AI systems, achieving such milestones requires considerable effort and poses dissent and dismay with at least 1/4 of the population, if not way more.",
+        "score": -1
+      },
+      {
+        "text": "Grok on X can retrieve new data from the web. I wonder how it happens here",
+        "score": -7
+      }
+    ]
+  },
+  "[Project] Sparse Mixture of Experts Language Model from Scratch in less than 300 lines of Python + pytorch": {
+    "post_id": "1bjg04g",
+    "post_url": "https://www.reddit.com/r/MachineLearning/comments/1bjg04g/project_sparse_mixture_of_experts_language_model/",
+    "num_comments": 2,
+    "comments": [
+      {
+        "text": "That's somehow a very complex code for such a simple implementation. If you want to read the code to make sparse MOE, go to hf's transformers library, you've got the source code for it (with the custom loss function for the sparsity).",
+        "score": 7
+      },
+      {
+        "text": "Why so many people put any emphasis in \"... less than x lines of code\" is beyond my understanding",
+        "score": 1
+      }
+    ]
+  },
+  "[R] \"Road to Sora\" - Paper Reading List": {
+    "post_id": "1b6yb1x",
+    "post_url": "https://www.reddit.com/r/MachineLearning/comments/1b6yb1x/r_road_to_sora_paper_reading_list/",
+    "num_comments": 3,
+    "comments": [
+      {
+        "text": "Photorealistic video generation with diffusion models (W.A.L.T) feel very similar:\n\n1. Uses a 3D (space-time) causal convolutional video encoder to compress videos into a continuous latent space that respects aspect ratio of the original video.\n2. The compressed latent space is itself then patched (though these patches are 1 x p x p blocks, aka just a single unit in the time dimension), and each patch still captures the spatial-temporal information along the 3-dimensions of the video\n3. The latent patches are fed through a diffusion transformer to denoise\n4. The clean latent patches are reconstructed (into the appropriate aspect ratio, this is a shared idea w/ Sora) and the ran through the decoder to get the video back\n\nSame sets of capabilities too - conditional video generation, autoregressive (frame by frame) text-to-video, video-to-video, image-to-video (an image is just a single-frame video in both papers). W.A.L.T was under-parameterized and undertrained, I wouldn't be surprised if Sora is just a scaled up version of it.",
+        "score": 7
+      },
+      {
+        "text": "thank you for posting this. it helps a lot and I was looking forward to reading up on Sora",
+        "score": 2
+      },
+      {
+        "text": "This is very useful, thanks!",
+        "score": 3
+      }
+    ]
+  },
+  "[N] Language Processing Unit (LPU) makes inference of LLMs 10x faster": {
+    "post_id": "1awjheu",
+    "post_url": "https://www.reddit.com/r/MachineLearning/comments/1awjheu/n_language_processing_unit_lpu_makes_inference_of/",
+    "num_comments": 4,
+    "comments": [
+      {
+        "text": "From my understanding, they load all the weights into on-die SRAM instead of GPU memory. It's nice and fast and all, but you need an entire server rack of them to serve a single model. I don't know how well they do with different architectures and model sizes either.\n\nBasically if you're not a data center with very well defined requirements for inference, it doesn't matter.",
+        "score": 53
+      },
+      {
+        "text": ">Unlike other computer chips that do many things at once (parallel processing), the LPU works on tasks one after the other (sequential processing)\n\nI don't think this is accurate. Their [paper](https://wow.groq.com/wp-content/uploads/2023/05/GroqISCAPaper2022_ASoftwareDefinedTensorStreamingMultiprocessorForLargeScaleMachineLearning-1.pdf) describes an architecture with many parallel cores:\n\n>We describe the topology, routing and flow control to characterize the performance of\nthe network that serves as the fabric for a large-scale parallel machine learning system with up to 10,440 TSPs and more than 2 TeraBytes of global memory accessible in less than 3 microseconds of end-to-end system latency.\n\nEach core has very fast access to a small amount (~200MB) of memory, and the model is split across all of them.",
+        "score": 17
+      },
+      {
+        "text": "Groq isn't some random start up, it was founded by the original creator of the TPU at Google, so they've got a strong team",
+        "score": 7
+      },
+      {
+        "text": "Sounds a lot like VLIW to me...",
+        "score": 1
+      }
+    ]
+  },
+  "[P] Constitutional AI recipe with open LLMs": {
+    "post_id": "1akdv4i",
+    "post_url": "https://www.reddit.com/r/MachineLearning/comments/1akdv4i/p_constitutional_ai_recipe_with_open_llms/",
+    "num_comments": 2,
+    "comments": [
+      {
+        "text": "I've been extremely disappointed with what I encountered so far with regards to this stuff.\n\nAnthropic has managed to place guardrails on their model, but at the cost of completely handicapping it, to the point that it gets beaten by 34b models.\n\nI investigated the \"moderator\" llama model (llamaguard), but found it to be extremely inflexible in what roles it was able to police, for example it can detect violence and sex, but it's just a slight step above the ancient sentiment classifiers, and those are just a few steps above keyword matchers.\n\nFor example, I tried prompt-engineering it to block:\n\n- spoilers\n- references to post-medieval technology\n- fourth wall breaking\n- \"I'm sorry but AALLM\"\n- out of character GPTisms\n\nAnd it failed miserably at all of those. In my experience, those guardrails can only be properly detected through fine tuning, and ALL existing datasets focus on sex, violence and \"illegal activities\", which I have zero (negative, actually) interest in blocking.\n\nI am also interested in some research coming out of China about in-context refusals (e.g. no amount of pleading will make Harry Potter help you write code - he doesn't know how - even if the underlying model might be perfectly able to do so), but so far most western research is dead set on the old \"sex & violence\" combo.\n\nIt would be nice to find proper guidance/fencing architectures, but constitutional AI ain't it for me, too much lobotomy.\n\nThe moderator approach helps, but it doubles the cost and also introduces either latency or that weird gaslighting where the response streams in normally but then suddenly is replaced by a hardcoded refusal.",
+        "score": 7
+      },
+      {
+        "text": "Found [2 relevant code implementations](https://www.catalyzex.com/paper/arxiv:2212.08073/code) for \"Constitutional AI: Harmlessness from AI Feedback\".\n\n[Ask the author(s) a question](https://www.catalyzex.com/paper/arxiv:2212.08073?autofocus=question) about the paper or code.\n\nIf you have code to share with the community, please add it [here](https://www.catalyzex.com/add_code?paper_url=https://arxiv.org/abs/2212.08073&title=Constitutional+AI%3A+Harmlessness+from+AI+Feedback) 😊🙏\n\n--\n\nTo opt out from receiving code links, DM me.",
+        "score": 1
+      }
+    ]
+  },
+  "[D] \"Grokking\" Deep Learning architectures and using them in practice": {
+    "post_id": "yrsqcz",
+    "post_url": "https://www.reddit.com/r/MachineLearning/comments/yrsqcz/d_grokking_deep_learning_architectures_and_using/",
+    "num_comments": 6,
+    "comments": [
+      {
+        "text": "You should take some of Andrew Ng's courses on Coursera, such as the ConvNets course. He walks through the major architectures in lectures (U-nets, ResNet, etc) and you implement them in homeworks. \n\nWaaaay faster than banging your head against a paper. If you devote all your time for a week, you can get through the whole course. (Bit of a speedrun, you probably want two weeks for full comprehension.)",
+        "score": 6
+      },
+      {
+        "text": "I think having coding experience is exceptionally valuable to understanding. \n\nPick a paper you like that has code (Papers with Code helps in that search) and is considered important (so you aren't investing time in some less important tangent), with an architecture that is worth digging into (like transformers for some vision application you care about), and that preferably also has a Jupyer notebook walkthrough on the web. Find your own toy dataset or problem to apply it to - keep it pretty simple because the goal is understanding, not moving mountains. Review all the above. Then reimplement a toy version on your own for your own dataset - refer back to the above as needed. Doing toy versions keeps computing requirements manageable - you are looking for positive results that prove it is working and you understood things, not the best results ever. So a toy version is fine. It will likely take a few highly focused days to a week depending on your prior knowledge and programming skills in Python and either Torch or Tensorflow.   \n   \nRepeat as needed to stay current with the major trends. It gets much faster the second and subsequent times through, especially if you structure your code so you can drop in different models. Consider using Lightning to enhance that flexibility. \n\nBTW, if you are an algorithm person, focus on coding the algorithms - e.g. an updated transformer algorithm as your toy example. If you are an applications person, use the stock libraries and code a toy application.   \n   \nThe balance of time between theory and practice coding depends in large part on your career objectives. There are way too many papers to keep up with so you need a triage strategy. For example (maybe not right for you) review almost all the latest papers on some narrow field related to your PhD (e.g. AI for radiology interpretation of malignancies in chest xrays) and review only significant papers across the broad AI spectrum, perhaps lagging back a year or two so you can see which papers actually were highly significant.",
+        "score": 5
+      },
+      {
+        "text": "Try to find a problem (maybe within computer vision) that you care about and where you have labelled data. Then maybe try to implement ( i.e. copy and paste) basic versions of standard architectures and start training. It probably doesn’t perform well to begin with so you start fiddling with regularization and losses and layers and features and it gets better. If you feel a rush, you get the energy to carry on, watch youtube tutorials, take coursera courses and maybe even read papers. You are on the path to develop the practical wisdom that drives research and applications these days. Its all about getting you hands dirty. \nAll those fancy looking papers are not a result of theoretical thoughts and careful planing. Rather, they had some ideas and started coding. It looked promising but it didnt work, but then they  fiddled and got some more ideas. And it improved - and at some point, they had something they could publish.",
+        "score": 5
+      },
+      {
+        "text": "wow, similar happen to me. but the great mentor is your supervisor. I am not PhD yet a research assistant. I discussed a lot with my supervisor regarding what I am currently doing and studying. He helped me a lot to assist me to stay on track. You probably can join AI/ML communities, sometimes they held paper discussions (LIVE) or discuss anything related to AI/ML on discord, etc. In my case, I have to re-study again the ML foundation (such as probstat and calculus) since I am always get influenced by current models (without understanding a thing), but if you already have those pieces of knowledge,you probably dont need time to understand them thoroughly. Thats what my supervisor suggested me before.",
+        "score": 3
+      },
+      {
+        "text": "Find people to talk to! I definitely agree that the problem with learning by doing in ML is that it would probably be several full time jobs.\n\nWhat I would suggest (and how I try to get by): find someone -- or several someones -- to discuss ideas with. Instead of learning by doing, learn by discussing how you would hypothetically do something, e.g. solve a certain problem or extend a method to do something else. Your advisor is great for this. If your advisor doesn't have time, try other professors, postdocs, more senior PhD students, or basically anyone who will talk to you.\n\nAs for keeping track of the field, my opinion is that there's not actually that much truly *new* stuff in ML, and everything basically builds on the same themes in different ways. Once you're sufficiently familiar with the general themes, the high level is enough to understand new stuff. I basically never read papers beyond the high level, except if I'm considering using it for my research.",
+        "score": 2
+      },
+      {
+        "text": "You have to learn by doing, but you can do a surprising amount with small data, which will mean you can implement a paper and learn a whole lot faster since you aren't waiting on training. For example, if all you have is MNIST:\n\nSupervised MLP classifier\n\nSupervised convolutional classifier\n\nSupervised transformer classifier \n\nMLP GAN\n\nConvolutional GAN\n\nGan regularizers (W-GAN, GAN-GP, etc- https://avg.is.mpg.de/publications/meschedericml2018 is mandatory reading + replicate experiments if you want to work on GANs)\n\nVariational Autoencoder\n\nVector quantized variational autoencoder (VQVAE)\n\nDiffusion model\n\nRepresent MNIST Digits using an MLP that maps pixel x, y -> brightness (Kmart NeRF)\n\nI've done most of these projects (still need to do diffusion and my vqvae implementation doesn't work) and they each take about 2 days to grok the paper, translate to code, and implement on MNIST (~6 hours of coding?) using pytorch and the pytorch documentation + reading the relevant papers. very educational!",
+        "score": 2
+      }
+    ]
+  },
+  "[P] Programmatic: Powerful Weak Labeling": {
+    "post_id": "u7zg4j",
+    "post_url": "https://www.reddit.com/r/MachineLearning/comments/u7zg4j/p_programmatic_powerful_weak_labeling/",
+    "num_comments": 2,
+    "comments": [
+      {
+        "text": "Code for https://arxiv.org/abs/2104.09683 found: https://github.com/NorskRegnesentral/skweak\n\n[Paper link](https://arxiv.org/abs/2104.09683) | [List of all code implementations](https://www.catalyzex.com/paper/arxiv:2104.09683/code)\n\n\n\n--\n\n Code for https://arxiv.org/abs/1605.07723 found: https://github.com/HazyResearch/snorkel\n\n[Paper link](https://arxiv.org/abs/1605.07723) | [List of all code implementations](https://www.catalyzex.com/paper/arxiv:1605.07723/code)\n\n\n\n--\n\nTo opt out from receiving code links, DM me",
+        "score": 3
+      },
+      {
+        "text": "Have any large datasets been built using this approach? What is the recommended operations setup? As someone who frequently manages teams of labelers, I fear that adoption of programmatic labeling will lead to large datasets of poor quality, and in turn models that omit.\n\nIntuitively I do believe that domain experts can write high precision, low recall systems. But before I can ship my model I really need to care about what these systems are omitting! \n\nAre there really NLP problems that can truly be labeled programmatically? When do you know that you have an appropriate problem domain vs do not?",
+        "score": 2
+      }
+    ]
+  },
+  "[D] How do you grok large ML codebases?": {
+    "post_id": "evl4k4",
+    "post_url": "https://www.reddit.com/r/MachineLearning/comments/evl4k4/d_how_do_you_grok_large_ml_codebases/",
+    "num_comments": 5,
+    "comments": [
+      {
+        "text": "I'm a little surprised no one's mentioned this, but read through [the hitchhiker's guide to python](https://docs.python-guide.org/) if you haven't yet. You can buy a paper book if you prefer, but it's free as an online doc at the link above.\n\nThis book at first glance might look like a tour through getting started with Python (basic language syntax for things like decorators, which IDE or editor to use, how virtual environments work, etc.) but the heart of the book's actually a lot more broadly useful than the first few chapters might imply.\n\nThe whole thing's built around getting you to clone a half a dozen different repos, and walk through the guided tour as the author points out different language features, as they appear in large common libraries, plus a few small throw-away repos to get started with something small enough to be manageable.\n\nThe key piece when getting rolling with understanding a new repo in my opinion, is similar to how you need to approach a new branch of mathematics, or mathematics as a whole even. Maybe you want to get to where you understand what it means for a particular function to exhibit Lipschitz Continuity. You can either try and teach yourself all of Analysis (quite the adventure, haha) or you can figure out the graph of dependencies, and make a minimum path to get to that definition. It relies on uniform continuity which relies on... you get the idea.\n\nIt's a fool's errand to try and get your head around a whole library. The trick then it so figure out how to orient yourself, so you can decide which chunks are worth investigating, and which chunks are worth disregarding.\n\nA few tips:\n\n- program entry point. How is the thing meant to be called in the first place? Where's your window in? If it's ran from the command line, start there. If it's an API, start with a particular function you're most interested in.\n\n\n- what's the mental model that sits behind the design decisions? Good libraries aren't usually a dumping ground of random functions, usually there's some rhyme and reason. What types is the library built off of (for pytorch, torch.Tensor and torch.nn are two conceptual high level building blocks the library's built with, obviously you could make a much more detailed map if you spend a little time with it).\n\n- consider taking notes. I think code bases are best represented as a graph, which unfortunately limits the number of applications you can easily use to organize your thoughts. I use [cmap](https://cmap.ihmc.us/) when I'm making notes about a code base I care about, but it's not ideal. I'd be super stoked if someone built an actually powerful graph based note taking app that can expand out into arbitrary notes. You can connect notes with inter-notebook links in other note taking apps (I like boostnote for more general note taking), but... I like being able to see the structure I'm getting comfortable with from a bird's eye view.\n\n\nFor me personally, I haven't done any actual contributing to a repo yet, but it's been incredibly helpful getting comfortable with reading the code. What I mostly like to do personally, is (when I'm working in pycharm) use the step through debugger to execute code I'm writing, and step into the source and orient myself based on the execution path my programs actually use. After all, if I'm going to limit what part of a library I'm going to look at, at the very least I should limit things based on what I'm actually running. It's nice seeing how things connect under the hood, I've learned a lot reading code written by better coders than me, and it helps to remember what the things are if I know a bunch of shit about how it works under the hood. That's my two cents at least.",
+        "score": 8
+      },
+      {
+        "text": "It is like any large code base.  First you need to understand the language pretty well; most of it is going to be in python.   Then, read any papers that refer to the library;  they will explain the algorithm.  Then start on the code.\n\nThere are going to be a large number of ancillary parts, that read in data, maybe scale or rework it in various ways, create training and testing sets, write out results and scores, take snapshots, etc.   Categorize them.  You can probably ignore them for now.  If you are lucky, these have been put in their own directory or at least named well.    \n\nYou should be left with a relatively small 'core' of the real ML stuff.  There should be a main controlling program.  Follow it while it deals with data and parameters, and then calls into the core.  That core should follow, approximately, the algorithm that is discussed in the paper(s).  Try to follow along with the steps.  Often there is not a direct one-to-one relationship between the algorithm steps and subroutines, but it should (hopefully) be meaningfully chunked.  For each of the chunks figure out what goes in, what goes out, and then how they implemented the algorithm steps in that chunk, using your knowledge of whatever library they used (pytorch or TF, for example) and the language.",
+        "score": 5
+      },
+      {
+        "text": "The more code you have read, the better you are at reading code. So the short answer is you cant unless youve worked in production and have read tens of thousands of lines of code.",
+        "score": 4
+      },
+      {
+        "text": "Late to the discussion. I'm currently contributing to Pytorch. \n\n\nI find looking though history is more helpful than the codebase itself. Start by searching for similar issues with PRs and use that as a guide to figuring out which files needs to be changed.\n\n\nTrack variables and functions throughout the codebase using GitHub searchband ripgrep. Sometimes you'll need to understand other open source codebase or docs.\n\n\nEg: I'm adding a feature that allows Pytorch to export ONNX with opset 21. So I looked for a previous issue and PR related to supporting opset 20, 19... \n\n\nThis narrows down the files I need to look at. At this point you can communicate your understanding of the codebase to the maintainers. \n\n\nNow your first PR will probably not be accepted immediately and some CI tests may break. You can continue to add changes to the PR until the tests pass and the PR is approved",
+        "score": 1
+      },
+      {
+        "text": "You first have to do some tutorials to learn ML and DL. If you have a good understanding of the networks architectures, and have some knowledge how everything fits together you can work on a library. \n\nAs many paper publish their code on Github. This is not made to let a beginner start with it, but for other researches to reproduce the results. However mistakes can be made so I will react on those pull request, but further I cannot change stuff. So be aware that many projects on github are to show to other people how there code is working.  \n\n\nAnyway, your contributions are always useful. Learn ML to help others :D",
+        "score": -1
+      }
+    ]
+  }
+}

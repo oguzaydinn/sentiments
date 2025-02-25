@@ -4,11 +4,8 @@ import axios from "axios";
 import snoowrap from "snoowrap";
 import { writeFile, mkdir } from "fs/promises";
 import path from "path";
-
-// Load environment variables
 dotenv.config();
 
-// Ensure environment variables are set
 if (
   !process.env.CLIENT_ID ||
   !process.env.CLIENT_SECRET ||
@@ -18,15 +15,12 @@ if (
   process.exit(1);
 }
 
-// 🔹 Reddit API Credentials
 const CLIENT_ID = process.env.CLIENT_ID as string;
 const CLIENT_SECRET = process.env.CLIENT_SECRET as string;
 const USER_AGENT = process.env.USER_AGENT as string;
 
-// 🔹 Reddit OAuth Token Endpoint
 const TOKEN_URL = "https://www.reddit.com/api/v1/access_token";
 
-// 🔹 Function to Get an Access Token
 async function getAccessToken(): Promise<string | null> {
   try {
     const response = await axios.post(
@@ -56,19 +50,11 @@ async function getAccessToken(): Promise<string | null> {
   }
 }
 
-// 🔹 List of Subreddits & Search Query
-const subreddits: string[] = [
-  "artificial",
-  "MachineLearning",
-  "OpenAI",
-  "GPT3",
-];
+const subreddits: string[] = ["artificial", "MachineLearning", "OpenAI", "agi"];
 const searchQuery: string = "grok";
 
-// 🔹 Directory for storing JSON files
 const OUTPUT_DIR: string = "reddit_comments";
 
-// 🔹 Ensure Directory Exists
 async function ensureDirExists(dir: string) {
   try {
     await mkdir(dir, { recursive: true });
@@ -77,7 +63,6 @@ async function ensureDirExists(dir: string) {
   }
 }
 
-// 🔹 Function to Fetch Reddit Comments
 async function fetchComments(
   accessToken: string,
   subredditName: string,
@@ -105,7 +90,6 @@ async function fetchComments(
 
       console.log(`📌 Fetching comments for: ${postTitle}`);
 
-      // Retrieve top comments
       const rawComments = await post.comments.fetchMore({
         amount: 50,
         skipReplies: false,
@@ -130,14 +114,12 @@ async function fetchComments(
   }
 }
 
-// 🔹 Save Data as JSON File
 async function saveToJson(subreddit: string, data: any) {
   const filePath = path.join(OUTPUT_DIR, `${subreddit}.json`);
   await writeFile(filePath, JSON.stringify(data, null, 2), "utf-8");
   console.log(`✅ Data saved to ${filePath}`);
 }
 
-// 🔹 Export Functions for Use in `index.ts`
 export {
   getAccessToken,
   fetchComments,
