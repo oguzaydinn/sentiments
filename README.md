@@ -10,10 +10,10 @@ A sentiment analysis tool designed to monitor and analyze public sentiment on so
 ## Installation
 
 1. **Clone the Repository**:
-   ***bash
+   ```bash
    git clone https://github.com/oguzaydinn/sentiments.git
    cd sentiments
-   ***
+   ```
 
 2. **Install Dependencies**:
    This project uses [Bun](https://bun.sh/) as the package manager. Ensure Bun is installed, then run:
