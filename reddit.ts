@@ -1,23 +1,14 @@
-import { Buffer } from "buffer";
-import dotenv from "dotenv";
-import axios from "axios";
 import snoowrap from "snoowrap";
-import { writeFile, mkdir } from "fs/promises";
-import path from "path";
+import dotenv from "dotenv";
+import { RedditModel } from "./models";
+import type { RedditData } from "./types";
+import axios from "axios";
+
 dotenv.config();
 
-if (
-  !process.env.CLIENT_ID ||
-  !process.env.CLIENT_SECRET ||
-  !process.env.USER_AGENT
-) {
-  console.error("❌ Missing required environment variables in .env file.");
-  process.exit(1);
-}
-
-const CLIENT_ID = process.env.CLIENT_ID as string;
-const CLIENT_SECRET = process.env.CLIENT_SECRET as string;
-const USER_AGENT = process.env.USER_AGENT as string;
+const CLIENT_ID = process.env.CLIENT_ID!;
+const CLIENT_SECRET = process.env.CLIENT_SECRET!;
+const USER_AGENT = process.env.USER_AGENT!;
 
 const TOKEN_URL = "https://www.reddit.com/api/v1/access_token";
 
@@ -50,43 +41,50 @@ async function getAccessToken(): Promise<string | null> {
   }
 }
 
+export async function initializeReddit() {
+  const accessToken = await getAccessToken();
+  if (!accessToken) {
+    throw new Error("Failed to get access token");
+  }
+
+  return new snoowrap({
+    userAgent: USER_AGENT,
+    clientId: CLIENT_ID,
+    clientSecret: CLIENT_SECRET,
+    accessToken: accessToken,
+  });
+}
+
 const subreddits: string[] = ["artificial", "MachineLearning", "OpenAI", "agi"];
 const searchQuery: string = "grok";
 
-const OUTPUT_DIR: string = "reddit_comments";
-
-async function ensureDirExists(dir: string) {
-  try {
-    await mkdir(dir, { recursive: true });
-  } catch (error) {
-    console.error("❌ Error creating directory: ", error);
-  }
-}
-
 async function fetchComments(
-  accessToken: string,
   subredditName: string,
-  query: string
-) {
+  query: string,
+  redditClient: snoowrap
+): Promise<RedditData | null> {
   try {
-    console.log(`🔍 Searching in r/${subredditName} for "${query}"...`);
-    const reddit = new snoowrap({
-      accessToken,
-      userAgent: USER_AGENT,
-      clientId: CLIENT_ID,
-      clientSecret: CLIENT_SECRET,
-      refreshToken: process.env.REFRESH_TOKEN ?? "",
-    });
+    console.log(
+      `🔍 Fetching posts from r/${subredditName} for query: "${query}"`
+    );
+    const subreddit = redditClient.getSubreddit(subredditName);
+    const posts = await subreddit.search({ query, sort: "hot" });
 
-    const subreddit = reddit.getSubreddit(subredditName);
-    const posts = await subreddit.search({ query, sort: "hot", limit: 10 });
+    if (!posts.length) {
+      console.log(`⚠ No posts found for "${query}" in r/${subredditName}`);
+      return null;
+    }
 
-    const postData: Record<string, any> = {};
+    const postData: RedditData = {
+      subredditName,
+      query,
+      category: "Discussion",
+      discussions: [],
+    };
 
     for (const post of posts) {
       const postTitle = post.title;
       const postUrl = `https://www.reddit.com${post.permalink}`;
-      const postId = post.id;
 
       console.log(`📌 Fetching comments for: ${postTitle}`);
 
@@ -99,33 +97,29 @@ async function fetchComments(
         score: comment.score,
       }));
 
-      postData[postTitle] = {
-        post_id: postId,
-        post_url: postUrl,
-        num_comments: commentsArray.length,
+      postData.discussions.push({
+        title: postTitle,
+        url: postUrl,
         comments: commentsArray,
-      };
+      });
     }
 
     return postData;
   } catch (error) {
     console.error(`❌ Error fetching from r/${subredditName}:`, error);
-    return {};
+    return null;
   }
 }
 
-async function saveToJson(subreddit: string, data: any) {
-  const filePath = path.join(OUTPUT_DIR, `${subreddit}.json`);
-  await writeFile(filePath, JSON.stringify(data, null, 2), "utf-8");
-  console.log(`✅ Data saved to ${filePath}`);
+async function saveToMongo(data: RedditData) {
+  try {
+    await new RedditModel(data).save();
+    console.log(
+      `✅ Successfully stored data for r/${data.subredditName} in MongoDB Atlas`
+    );
+  } catch (error) {
+    console.error("❌ Failed to save data in MongoDB:", error);
+  }
 }
 
-export {
-  getAccessToken,
-  fetchComments,
-  saveToJson,
-  ensureDirExists,
-  subreddits,
-  searchQuery,
-  OUTPUT_DIR,
-};
+export { fetchComments, saveToMongo, subreddits, searchQuery };

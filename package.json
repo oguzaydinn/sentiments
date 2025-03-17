@@ -9,9 +9,11 @@
     "typescript": "^5.0.0"
   },
   "dependencies": {
+    "@types/mongoose": "^5.11.97",
     "@types/node": "^22.13.5",
     "axios": "^1.7.9",
     "dotenv": "^16.4.7",
+    "mongoose": "^8.12.1",
     "snoowrap": "^1.23.0"
   }
 }

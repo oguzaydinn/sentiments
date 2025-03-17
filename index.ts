@@ -1,30 +1,26 @@
 import {
-  getAccessToken,
   fetchComments,
-  saveToJson,
-  ensureDirExists,
+  saveToMongo,
   subreddits,
   searchQuery,
-  OUTPUT_DIR,
+  initializeReddit,
 } from "./reddit";
+import { connectDB } from "./database";
 
 async function run() {
   console.log("🚀 Starting Reddit Scraper...");
+  await connectDB();
 
-  await ensureDirExists(OUTPUT_DIR);
-
-  const accessToken = await getAccessToken();
-  if (!accessToken) {
-    console.error("❌ Failed to authenticate with Reddit, exiting.");
-    return;
-  }
+  const redditClient = await initializeReddit();
 
   for (const subreddit of subreddits) {
-    const data = await fetchComments(accessToken, subreddit, searchQuery);
-    await saveToJson(subreddit, data);
+    const data = await fetchComments(subreddit, searchQuery, redditClient);
+    if (data) {
+      await saveToMongo(data);
+    }
   }
 
-  console.log("✅ Done! All comments saved.");
+  console.log("✅ Done! All discussions stored.");
 }
 
 run();
