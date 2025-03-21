@@ -3,6 +3,9 @@ import dotenv from "dotenv";
 import { RedditModel } from "./models";
 import type { RedditData } from "./types";
 import axios from "axios";
+import { saveRedditData } from "./storage";
+import type Snoowrap from "snoowrap";
+import { connectDB } from "./database";
 
 dotenv.config();
 
@@ -55,19 +58,17 @@ export async function initializeReddit() {
   });
 }
 
-const subreddits: string[] = ["artificial", "MachineLearning", "OpenAI", "agi"];
-const searchQuery: string = "grok";
-
 async function fetchComments(
+  reddit: Snoowrap,
   subredditName: string,
   query: string,
-  redditClient: snoowrap
+  category: string
 ): Promise<RedditData | null> {
   try {
     console.log(
       `🔍 Fetching posts from r/${subredditName} for query: "${query}"`
     );
-    const subreddit = redditClient.getSubreddit(subredditName);
+    const subreddit = reddit.getSubreddit(subredditName);
     const posts = await subreddit.search({ query, sort: "hot" });
 
     if (!posts.length) {
@@ -78,7 +79,7 @@ async function fetchComments(
     const postData: RedditData = {
       subredditName,
       query,
-      category: "Discussion",
+      category: category,
       discussions: [],
     };
 
@@ -113,13 +114,37 @@ async function fetchComments(
 
 async function saveToMongo(data: RedditData) {
   try {
-    await new RedditModel(data).save();
+    await connectDB();
+
+    const today = new Date().toISOString().split("T")[0];
+
+    const existingDoc = await RedditModel.findOne({
+      subredditName: data.subredditName,
+      query: data.query,
+      category: data.category,
+      date: today,
+    });
+
+    if (existingDoc) {
+      existingDoc.discussions = [
+        ...existingDoc.discussions,
+        ...data.discussions,
+      ];
+      await existingDoc.save();
+    } else {
+      await RedditModel.create({
+        ...data,
+        date: today,
+      });
+    }
+
     console.log(
-      `✅ Successfully stored data for r/${data.subredditName} in MongoDB Atlas`
+      `✅ Successfully stored data for r/${data.subredditName} in MongoDB for date: ${today}`
     );
   } catch (error) {
-    console.error("❌ Failed to save data in MongoDB:", error);
+    console.error("❌ Failed to save data to MongoDB:", error);
+    throw error;
   }
 }
 
-export { fetchComments, saveToMongo, subreddits, searchQuery };
+export { fetchComments, saveToMongo };
