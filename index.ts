@@ -9,12 +9,33 @@ const categories = {
   health: ["health", "medicine", "Fitness"],
 };
 
+const timeFilters = ["hour", "day", "week", "month", "year", "all"] as const;
+type TimeFilter = (typeof timeFilters)[number];
+
 const categoryArg = process.argv[2];
 const searchQuery = process.argv[3];
+const timeFilterArg = (process.argv[4] as TimeFilter) || "week";
+const minScoreArg = parseInt(process.argv[5] || "50", 10);
 
 if (!categoryArg || !searchQuery) {
-  console.error("❌ Usage: bun run index.ts <category> ");
+  console.error(
+    "❌ Usage: bun run index.ts <category> <search_query> [time_filter] [min_score]"
+  );
   console.error("Available categories:", Object.keys(categories).join(", "));
+  console.error(
+    "Available time filters:",
+    timeFilters.join(", "),
+    "(default: month)"
+  );
+  console.error("Min score: Minimum score for posts (default: 50)");
+  process.exit(1);
+}
+
+if (process.argv[4] && !timeFilters.includes(timeFilterArg)) {
+  console.error(
+    `❌ Invalid time filter "${timeFilterArg}". Choose from:`,
+    timeFilters.join(", ")
+  );
   process.exit(1);
 }
 
@@ -28,7 +49,10 @@ if (!subreddits) {
 }
 
 async function run() {
-  console.log("🚀 Starting Reddit Scraper...");
+  console.log(`🚀 Starting Reddit Scraper...`);
+  console.log(
+    `📊 Settings: Category: ${categoryArg}, Query: "${searchQuery}", Time Filter: ${timeFilterArg}, Min Score: ${minScoreArg}`
+  );
 
   const reddit = await initializeReddit();
 
@@ -37,10 +61,18 @@ async function run() {
       reddit,
       subreddit,
       searchQuery,
-      categoryArg
+      categoryArg,
+      timeFilterArg,
+      minScoreArg,
+      10
     );
     if (data) {
-      await saveToMongo(data);
+      try {
+        await saveToMongo(data);
+      } catch (error) {
+        console.error(`❌ Error saving data for r/${subreddit}:`, error);
+        console.log("⚠️ Continuing with next subreddit...");
+      }
     }
   }
 
