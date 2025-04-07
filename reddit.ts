@@ -3,9 +3,9 @@ import dotenv from "dotenv";
 import { RedditModel } from "./models";
 import type { RedditData } from "./types";
 import axios from "axios";
-import { saveRedditData } from "./storage";
 import type Snoowrap from "snoowrap";
 import { connectDB } from "./database";
+import { preprocessRedditData } from "./preprocessing";
 
 dotenv.config();
 
@@ -62,17 +62,34 @@ async function fetchComments(
   reddit: Snoowrap,
   subredditName: string,
   query: string,
-  category: string
+  category: string,
+  timeFilter: "hour" | "day" | "week" | "month" | "year" | "all" = "week",
+  minScore: number = 50,
+  limit: number = 10
 ): Promise<RedditData | null> {
   try {
     console.log(
-      `🔍 Fetching posts from r/${subredditName} for query: "${query}"`
+      `🔍 Fetching posts from r/${subredditName} for query: "${query}" (last ${timeFilter}, min score: ${minScore})`
     );
     const subreddit = reddit.getSubreddit(subredditName);
-    const posts = await subreddit.search({ query, sort: "hot" });
+    const searchOptions: any = {
+      query,
+      sort: "relevance",
+      time: timeFilter,
+      limit: limit * 2,
+    };
+    const posts = await subreddit.search(searchOptions);
 
-    if (!posts.length) {
-      console.log(`⚠ No posts found for "${query}" in r/${subredditName}`);
+    const filteredPosts = posts.filter((post) => post.score >= minScore);
+
+    const sortedPosts = filteredPosts
+      .sort((a, b) => b.created_utc - a.created_utc)
+      .slice(0, limit);
+
+    if (!sortedPosts.length) {
+      console.log(
+        `⚠ No posts found for "${query}" in r/${subredditName} with minimum score ${minScore} in the last ${timeFilter}`
+      );
       return null;
     }
 
@@ -83,29 +100,45 @@ async function fetchComments(
       discussions: [],
     };
 
-    for (const post of posts) {
+    for (const post of sortedPosts) {
       const postTitle = post.title;
       const postUrl = `https://www.reddit.com${post.permalink}`;
+      const postDate = new Date(post.created_utc * 1000)
+        .toISOString()
+        .split("T")[0];
+      const postScore = post.score;
 
-      console.log(`📌 Fetching comments for: ${postTitle}`);
+      console.log(
+        `📌 Fetching comments for: ${postTitle} (Score: ${postScore}, Date: ${postDate})`
+      );
 
-      const rawComments = await post.comments.fetchMore({
-        amount: 50,
+      const fetchOptions: any = {
+        amount: 25, // Reduced from 50 to focus on top comments
+        sort: "top", // Get the highest-rated comments
         skipReplies: false,
-      });
-      const commentsArray = rawComments.map((comment) => ({
-        text: comment.body,
-        score: comment.score,
-      }));
+      };
+      const rawComments = await post.comments.fetchMore(fetchOptions);
+
+      // Filter comments by minimum score (half of post minimum to ensure we get some comments)
+      const commentMinScore = Math.max(5, Math.floor(minScore / 5));
+      const filteredComments = rawComments
+        .filter((comment) => comment.score >= commentMinScore)
+        .map((comment) => ({
+          text: comment.body,
+          score: comment.score,
+        }));
 
       postData.discussions.push({
         title: postTitle,
         url: postUrl,
-        comments: commentsArray,
+        comments: filteredComments,
       });
     }
 
-    return postData;
+    console.log(`🔄 Preprocessing data from r/${subredditName}...`);
+    const processedData = preprocessRedditData(postData);
+
+    return processedData;
   } catch (error) {
     console.error(`❌ Error fetching from r/${subredditName}:`, error);
     return null;
@@ -115,6 +148,7 @@ async function fetchComments(
 async function saveToMongo(data: RedditData) {
   try {
     await connectDB();
+    console.log("✅ Connected to MongoDB");
 
     const today = new Date().toISOString().split("T")[0];
 
@@ -130,6 +164,14 @@ async function saveToMongo(data: RedditData) {
         ...existingDoc.discussions,
         ...data.discussions,
       ];
+
+      if (data.processedDiscussions) {
+        existingDoc.processedDiscussions = [
+          ...(existingDoc.processedDiscussions || []),
+          ...data.processedDiscussions,
+        ];
+      }
+
       await existingDoc.save();
     } else {
       await RedditModel.create({
