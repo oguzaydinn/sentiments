@@ -1,6 +1,6 @@
-import VADER from "vader-sentiment";
 import type { RedditData, ProcessedComment } from "./types/reddit";
 import type { SentimentScores, SentimentAnalysis } from "./types/sentiment";
+import VADER from "vader-sentiment";
 
 function getSentimentLabel(compound: number): string {
   if (compound >= 0.05) return "positive";
@@ -8,10 +8,26 @@ function getSentimentLabel(compound: number): string {
   return "neutral";
 }
 
-function calculateOverallSentiment(
+function analyzeCommentSentiment(comment: ProcessedComment): SentimentAnalysis {
+  const originalSentiment = VADER.SentimentIntensityAnalyzer.polarity_scores(
+    comment.original
+  );
+
+  return {
+    original: originalSentiment,
+    overall: originalSentiment,
+    label: getSentimentLabel(originalSentiment.compound),
+  };
+}
+
+function calculateAverageSentiment(
   sentiments: SentimentScores[]
 ): SentimentScores {
-  return sentiments.reduce(
+  if (sentiments.length === 0) {
+    return { compound: 0, pos: 0, neu: 0, neg: 0 };
+  }
+
+  const sum = sentiments.reduce(
     (acc, curr) => ({
       compound: acc.compound + curr.compound,
       pos: acc.pos + curr.pos,
@@ -20,109 +36,58 @@ function calculateOverallSentiment(
     }),
     { compound: 0, pos: 0, neu: 0, neg: 0 }
   );
-}
-
-function normalizeSentiment(
-  sentiment: SentimentScores,
-  count: number
-): SentimentScores {
-  return {
-    compound: sentiment.compound / count,
-    pos: sentiment.pos / count,
-    neu: sentiment.neu / count,
-    neg: sentiment.neg / count,
-  };
-}
-
-export function analyzeSentiment(text: string): SentimentScores {
-  const result = VADER.SentimentIntensityAnalyzer.polarity_scores(text);
-  return {
-    compound: result.compound,
-    pos: result.pos,
-    neu: result.neu,
-    neg: result.neg,
-  };
-}
-
-export function analyzeCommentSentiment(
-  comment: { text: string },
-  processedComment?: ProcessedComment
-): SentimentAnalysis {
-  // Analyze original comment
-  const originalSentiment = analyzeSentiment(comment.text);
-
-  // Analyze processed comment if available
-  const processedSentiment = processedComment?.processed
-    ? analyzeSentiment(processedComment.processed)
-    : undefined;
-
-  // Calculate overall sentiment
-  const sentiments = [originalSentiment];
-  if (processedSentiment) {
-    sentiments.push(processedSentiment);
-  }
-
-  const overallSentiment = normalizeSentiment(
-    calculateOverallSentiment(sentiments),
-    sentiments.length
-  );
 
   return {
-    original: originalSentiment,
-    processed: processedSentiment,
-    overall: overallSentiment,
-    label: getSentimentLabel(overallSentiment.compound),
+    compound: sum.compound / sentiments.length,
+    pos: sum.pos / sentiments.length,
+    neu: sum.neu / sentiments.length,
+    neg: sum.neg / sentiments.length,
   };
 }
 
 export function analyzeRedditData(data: RedditData): RedditData {
-  const processedDiscussions = data.discussions.map((discussion) => {
-    const processedComments = discussion.comments.map((comment, index) => {
-      const processedComment = discussion.processedComments?.[index];
-      const sentiment = analyzeCommentSentiment(comment, processedComment);
-
-      return {
-        ...comment,
-        sentiment,
-      };
+  // Analyze sentiment for each comment
+  data.discussions.forEach((discussion) => {
+    discussion.comments.forEach((comment) => {
+      // Check if comment has all required ProcessedComment properties
+      if (
+        "original" in comment &&
+        "processed" in comment &&
+        "tokens" in comment &&
+        "tokensWithoutStopwords" in comment &&
+        "normalizedTokens" in comment &&
+        "sarcasm" in comment
+      ) {
+        comment.sentiment = analyzeCommentSentiment(
+          comment as ProcessedComment
+        );
+      }
     });
 
     // Calculate discussion-level sentiment
-    const discussionSentiments = processedComments.map(
-      (c) => c.sentiment!.overall
-    );
-    const overallDiscussionSentiment = normalizeSentiment(
-      calculateOverallSentiment(discussionSentiments),
-      discussionSentiments.length
-    );
-
-    return {
-      ...discussion,
-      comments: processedComments,
-      sentiment: {
-        original: overallDiscussionSentiment,
-        overall: overallDiscussionSentiment,
-        label: getSentimentLabel(overallDiscussionSentiment.compound),
-      },
+    const commentSentiments = discussion.comments
+      .filter((c) => c.sentiment?.original)
+      .map((c) => c.sentiment!.original);
+    const discussionSentiment = calculateAverageSentiment(commentSentiments);
+    discussion.sentiment = {
+      original: discussionSentiment,
+      overall: discussionSentiment,
+      label: getSentimentLabel(discussionSentiment.compound),
     };
   });
 
   // Calculate subreddit-level sentiment
-  const subredditSentiments = processedDiscussions.map(
-    (d) => d.sentiment!.overall
+  const allCommentSentiments = data.discussions.flatMap((d) =>
+    d.comments
+      .filter((c) => c.sentiment?.original)
+      .map((c) => c.sentiment!.original)
   );
-  const overallSubredditSentiment = normalizeSentiment(
-    calculateOverallSentiment(subredditSentiments),
-    subredditSentiments.length
-  );
-
-  return {
-    ...data,
-    discussions: processedDiscussions,
-    sentiment: {
-      original: overallSubredditSentiment,
-      overall: overallSubredditSentiment,
-      label: getSentimentLabel(overallSubredditSentiment.compound),
-    },
+  const subredditSentiment = calculateAverageSentiment(allCommentSentiments);
+  data.sentiment = {
+    original: subredditSentiment,
+    overall: subredditSentiment,
+    label: getSentimentLabel(subredditSentiment.compound),
   };
+
+  return data;
 }

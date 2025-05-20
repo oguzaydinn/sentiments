@@ -2,11 +2,12 @@ import type { SentimentAnalysis } from "./sentiment";
 
 export interface Comment {
   text: string;
-  score: number;
+  score?: number;
   sentiment?: SentimentAnalysis;
 }
 
 export interface ProcessedComment {
+  text: string;
   original: string;
   processed: string;
   tokens: string[];
@@ -16,7 +17,7 @@ export interface ProcessedComment {
     isSarcastic: boolean;
     confidence: number;
   };
-  score: number;
+  score?: number;
   sentiment?: SentimentAnalysis;
 }
 
