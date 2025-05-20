@@ -8,7 +8,7 @@
  * - Sarcasm detection: Basic detection of sarcastic patterns
  */
 
-import type { RedditData } from "./types";
+import type { RedditData, Comment, ProcessedComment } from "./types/reddit";
 
 const STOPWORDS = new Set([
   "a",
@@ -165,19 +165,19 @@ const SARCASM_INDICATORS = [
 ];
 
 export function tokenize(text: string): string[] {
+  // Remove URLs but keep the text
   const withoutUrls = text.replace(/https?:\/\/\S+/g, "");
 
+  // Keep punctuation and capitalization for VADER
   return withoutUrls
-    .replace(/[^\w\s']|_/g, " ")
     .replace(/\s+/g, " ")
     .trim()
-    .toLowerCase()
     .split(" ")
     .filter((token) => token.length > 0);
 }
 
 export function removeStopwords(tokens: string[]): string[] {
-  return tokens.filter((token) => !STOPWORDS.has(token));
+  return tokens.filter((token) => !STOPWORDS.has(token.toLowerCase()));
 }
 
 export function normalizeSlang(tokens: string[]): string[] {
@@ -220,16 +220,12 @@ export function detectSarcasm(text: string): {
   };
 }
 
-export function preprocessText(text: string): {
-  original: string;
-  processed: string;
-  tokens: string[];
-  tokensWithoutStopwords: string[];
-  normalizedTokens: string[];
-  sarcasm: { isSarcastic: boolean; confidence: number };
-} {
+export function preprocessText(
+  text: string
+): Omit<ProcessedComment, "sentiment"> {
   if (!text || text.trim() === "") {
     return {
+      text: text || "",
       original: text || "",
       processed: "",
       tokens: [],
@@ -246,6 +242,7 @@ export function preprocessText(text: string): {
   const processed = normalizedTokens.join(" ");
 
   return {
+    text,
     original: text,
     processed,
     tokens,
@@ -256,27 +253,15 @@ export function preprocessText(text: string): {
 }
 
 export function preprocessRedditData(data: RedditData): RedditData {
-  const processedDiscussions = data.discussions.map((discussion) => {
-    const processedComments = discussion.comments.map((comment) => {
-      const processed = preprocessText(comment.text);
-      return {
-        ...processed,
-        score: comment.score,
-      };
-    });
+  data.discussions = data.discussions.map((discussion) => ({
+    title: discussion.title,
+    url: discussion.url,
+    comments: discussion.comments.map((comment) => ({
+      ...preprocessText(comment.text),
+    })),
+  }));
 
-    return {
-      title: discussion.title,
-      url: discussion.url,
-      comments: discussion.comments,
-      processedComments,
-    };
-  });
-
-  return {
-    ...data,
-    processedDiscussions,
-  };
+  return data;
 }
 
 export default {

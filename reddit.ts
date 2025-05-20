@@ -1,11 +1,11 @@
 import snoowrap from "snoowrap";
 import dotenv from "dotenv";
-import { RedditModel } from "./models";
-import type { RedditData } from "./types";
+import type { RedditData } from "./types/reddit";
 import axios from "axios";
 import type Snoowrap from "snoowrap";
-import { connectDB } from "./database";
 import { preprocessRedditData } from "./preprocessing";
+import { saveRedditData } from "./storage";
+import { analyzeRedditData } from "./sentiment";
 
 dotenv.config();
 
@@ -138,55 +138,25 @@ async function fetchComments(
     console.log(`🔄 Preprocessing data from r/${subredditName}...`);
     const processedData = preprocessRedditData(postData);
 
-    return processedData;
+    console.log(`📊 Analyzing sentiment for r/${subredditName}...`);
+    const dataWithSentiment = analyzeRedditData(processedData);
+
+    return dataWithSentiment;
   } catch (error) {
     console.error(`❌ Error fetching from r/${subredditName}:`, error);
     return null;
   }
 }
 
-async function saveToMongo(data: RedditData) {
+async function saveToFile(data: RedditData) {
   try {
-    await connectDB();
-    console.log("✅ Connected to MongoDB");
-
-    const today = new Date().toISOString().split("T")[0];
-
-    const existingDoc = await RedditModel.findOne({
-      subredditName: data.subredditName,
-      query: data.query,
-      category: data.category,
-      date: today,
-    });
-
-    if (existingDoc) {
-      existingDoc.discussions = [
-        ...existingDoc.discussions,
-        ...data.discussions,
-      ];
-
-      if (data.processedDiscussions) {
-        existingDoc.processedDiscussions = [
-          ...(existingDoc.processedDiscussions || []),
-          ...data.processedDiscussions,
-        ];
-      }
-
-      await existingDoc.save();
-    } else {
-      await RedditModel.create({
-        ...data,
-        date: today,
-      });
-    }
-
-    console.log(
-      `✅ Successfully stored data for r/${data.subredditName} in MongoDB for date: ${today}`
-    );
+    console.log("💾 Saving data to file system...");
+    await saveRedditData(data);
+    console.log(`✅ Successfully stored data for r/${data.subredditName}`);
   } catch (error) {
-    console.error("❌ Failed to save data to MongoDB:", error);
+    console.error("❌ Failed to save data to file:", error);
     throw error;
   }
 }
 
-export { fetchComments, saveToMongo };
+export { fetchComments, saveToFile };
