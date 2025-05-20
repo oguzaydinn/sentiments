@@ -1,13 +1,5 @@
-import { fetchComments, saveToMongo, initializeReddit } from "./reddit";
-
-const categories = {
-  technology: ["technology", "Futurology", "OpenAI"],
-  science: ["science", "Physics", "Space"],
-  politics: ["politics", "worldnews", "geopolitics"],
-  finance: ["finance", "cryptocurrency", "stocks"],
-  gaming: ["gaming", "pcgaming", "gamedev"],
-  health: ["health", "medicine", "Fitness"],
-};
+import { fetchComments, saveToFile, initializeReddit } from "./reddit";
+import { categories, type Category } from "./types/categories";
 
 const timeFilters = ["hour", "day", "week", "month", "year", "all"] as const;
 type TimeFilter = (typeof timeFilters)[number];
@@ -21,12 +13,14 @@ if (!categoryArg || !searchQuery) {
   console.error(
     "❌ Usage: bun run index.ts <category> <search_query> [time_filter] [min_score]"
   );
-  console.error("Available categories:", Object.keys(categories).join(", "));
-  console.error(
-    "Available time filters:",
-    timeFilters.join(", "),
-    "(default: month)"
-  );
+  console.error("\nAvailable categories:");
+  Object.keys(categories).forEach((category) => {
+    console.error(`\n${category.toUpperCase()}:`);
+    console.error(
+      `  Subreddits: ${categories[category as Category].join(", ")}`
+    );
+  });
+  console.error("\nTime filters:", timeFilters.join(", "), "(default: week)");
   console.error("Min score: Minimum score for posts (default: 50)");
   process.exit(1);
 }
@@ -39,7 +33,7 @@ if (process.argv[4] && !timeFilters.includes(timeFilterArg)) {
   process.exit(1);
 }
 
-const subreddits = categories[categoryArg as keyof typeof categories];
+const subreddits = categories[categoryArg as Category];
 if (!subreddits) {
   console.error(
     `❌ Invalid category "${categoryArg}". Choose from:`,
@@ -68,7 +62,7 @@ async function run() {
     );
     if (data) {
       try {
-        await saveToMongo(data);
+        await saveToFile(data);
       } catch (error) {
         console.error(`❌ Error saving data for r/${subreddit}:`, error);
         console.log("⚠️ Continuing with next subreddit...");
