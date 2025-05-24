@@ -226,29 +226,20 @@ export function preprocessText(
   if (!text || text.trim() === "") {
     return {
       text: text || "",
-      original: text || "",
       processed: "",
-      tokens: [],
-      tokensWithoutStopwords: [],
       normalizedTokens: [],
-      sarcasm: { isSarcastic: false, confidence: 0 },
     };
   }
 
   const tokens = tokenize(text);
   const tokensWithoutStopwords = removeStopwords(tokens);
   const normalizedTokens = normalizeSlang(tokensWithoutStopwords);
-  const sarcasm = detectSarcasm(text);
   const processed = normalizedTokens.join(" ");
 
   return {
     text,
-    original: text,
     processed,
-    tokens,
-    tokensWithoutStopwords,
     normalizedTokens,
-    sarcasm,
   };
 }
 
@@ -258,6 +249,13 @@ export function preprocessRedditData(data: RedditData): RedditData {
     url: discussion.url,
     comments: discussion.comments.map((comment) => ({
       ...preprocessText(comment.text),
+      score: comment.score,
+      replies:
+        comment.replies?.map((reply) => ({
+          ...preprocessText(reply.text),
+          score: reply.score,
+          replies: reply.replies || [],
+        })) || [],
     })),
   }));
 

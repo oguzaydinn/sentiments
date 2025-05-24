@@ -1,6 +1,6 @@
 import fs from "fs-extra";
 import path from "path";
-import type { RedditData } from "./types";
+import type { RedditData } from "./types/reddit";
 
 const LOGS_DIR = "logs";
 
@@ -44,10 +44,6 @@ export async function saveRedditData(data: RedditData): Promise<void> {
       ? {
           ...data,
           discussions: [...existingData.discussions, ...data.discussions],
-          processedDiscussions: [
-            ...(existingData.processedDiscussions || []),
-            ...(data.processedDiscussions || []),
-          ],
         }
       : data;
 

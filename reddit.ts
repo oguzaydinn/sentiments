@@ -1,6 +1,6 @@
 import snoowrap from "snoowrap";
 import dotenv from "dotenv";
-import type { RedditData } from "./types/reddit";
+import type { RedditData, RedditComment } from "./types/reddit";
 import axios from "axios";
 import type Snoowrap from "snoowrap";
 import { preprocessRedditData } from "./preprocessing";
@@ -113,25 +113,68 @@ async function fetchComments(
       );
 
       const fetchOptions: any = {
-        amount: 25, // Reduced from 50 to focus on top comments
-        sort: "top", // Get the highest-rated comments
+        amount: 25,
+        sort: "top",
         skipReplies: false,
       };
       const rawComments = await post.comments.fetchMore(fetchOptions);
 
-      // Filter comments by minimum score (half of post minimum to ensure we get some comments)
+      // Filter comments by minimum score
       const commentMinScore = Math.max(5, Math.floor(minScore / 5));
       const filteredComments = rawComments
         .filter((comment) => comment.score >= commentMinScore)
-        .map((comment) => ({
-          text: comment.body,
-          score: comment.score,
-        }));
+        .map((comment) => {
+          const commentData: RedditComment = {
+            text: comment.body,
+            processed: "",
+            normalizedTokens: [],
+            score: comment.score,
+            parentId: comment.parent_id,
+            id: comment.id,
+            replies: [],
+          };
+          return commentData;
+        });
+
+      // Build comment tree
+      const commentMap = new Map<string, RedditComment>();
+      const rootComments: RedditComment[] = [];
+
+      // First pass: Create map of all comments
+      filteredComments.forEach((comment) => {
+        if (comment.id) {
+          commentMap.set(comment.id, comment);
+        }
+      });
+
+      // Second pass: Build tree structure
+      filteredComments.forEach((comment) => {
+        if (!comment.parentId) {
+          // If no parentId, treat as root comment
+          rootComments.push(comment);
+          return;
+        }
+
+        if (comment.parentId.startsWith("t3_")) {
+          // This is a top-level comment
+          rootComments.push(comment);
+        } else {
+          // This is a reply, find its parent and add it
+          const parentId = comment.parentId.replace("t1_", "");
+          const parent = commentMap.get(parentId);
+          if (parent) {
+            parent.replies.push(comment);
+          } else {
+            // If parent not found, treat as root comment
+            rootComments.push(comment);
+          }
+        }
+      });
 
       postData.discussions.push({
         title: postTitle,
         url: postUrl,
-        comments: filteredComments,
+        comments: rootComments,
       });
     }
 

@@ -1,9 +1,15 @@
-import type { SentimentAnalysis } from "./sentiment";
+import type { SentimentAnalysis, SentimentScores } from "./sentiment";
 
-export interface Comment {
+export interface RedditComment {
   text: string;
-  score?: number;
+  processed: string;
+  normalizedTokens: string[];
+  score: number;
+  replies: RedditComment[];
   sentiment?: SentimentAnalysis;
+  // Temporary fields for building comment tree
+  parentId?: string;
+  id?: string;
 }
 
 export interface ProcessedComment {
@@ -24,7 +30,7 @@ export interface ProcessedComment {
 export interface Discussion {
   title: string;
   url: string;
-  comments: Comment[];
+  comments: RedditComment[];
   processedComments?: ProcessedComment[];
   sentiment?: SentimentAnalysis;
 }
@@ -33,9 +39,7 @@ export interface RedditData {
   subredditName: string;
   query: string;
   category: string;
-  date?: string;
   discussions: Discussion[];
-  processedDiscussions?: Discussion[];
   sentiment?: SentimentAnalysis;
 }
 
