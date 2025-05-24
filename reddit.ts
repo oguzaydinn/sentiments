@@ -64,12 +64,12 @@ async function fetchComments(
   query: string,
   category: string,
   timeFilter: "hour" | "day" | "week" | "month" | "year" | "all" = "week",
-  minScore: number = 50,
+  minPostScore: number = 50,
   limit: number = 10
 ): Promise<RedditData | null> {
   try {
     console.log(
-      `🔍 Fetching posts from r/${subredditName} for query: "${query}" (last ${timeFilter}, min score: ${minScore})`
+      `🔍 Fetching posts from r/${subredditName} for query: "${query}" (last ${timeFilter}, min post score: ${minPostScore})`
     );
     const subreddit = reddit.getSubreddit(subredditName);
     const searchOptions: any = {
@@ -80,7 +80,7 @@ async function fetchComments(
     };
     const posts = await subreddit.search(searchOptions);
 
-    const filteredPosts = posts.filter((post) => post.score >= minScore);
+    const filteredPosts = posts.filter((post) => post.score >= minPostScore);
 
     const sortedPosts = filteredPosts
       .sort((a, b) => b.created_utc - a.created_utc)
@@ -88,15 +88,23 @@ async function fetchComments(
 
     if (!sortedPosts.length) {
       console.log(
-        `⚠ No posts found for "${query}" in r/${subredditName} with minimum score ${minScore} in the last ${timeFilter}`
+        `⚠ No posts found for "${query}" in r/${subredditName} with minimum score ${minPostScore} in the last ${timeFilter}`
       );
       return null;
     }
 
     const postData: RedditData = {
-      subredditName,
+      subreddit: subredditName,
       query,
       category: category,
+      metadata: {
+        query,
+        timeframe: timeFilter,
+        minScore: minPostScore,
+        totalComments: 0,
+        totalDiscussions: 0,
+        scrapedAt: new Date().toISOString(),
+      },
       discussions: [],
     };
 
@@ -113,71 +121,80 @@ async function fetchComments(
       );
 
       const fetchOptions: any = {
-        amount: 25,
+        amount: 50,
         sort: "top",
         skipReplies: false,
       };
       const rawComments = await post.comments.fetchMore(fetchOptions);
 
-      // Filter comments by minimum score
-      const commentMinScore = Math.max(5, Math.floor(minScore / 5));
-      const filteredComments = rawComments
-        .filter((comment) => comment.score >= commentMinScore)
-        .map((comment) => {
-          const commentData: RedditComment = {
-            text: comment.body,
-            processed: "",
-            normalizedTokens: [],
-            score: comment.score,
-            parentId: comment.parent_id,
-            id: comment.id,
-            replies: [],
-          };
-          return commentData;
-        });
+      console.log(
+        `📝 Processing ${rawComments.length} comments (all scores included)`
+      );
 
-      // Build comment tree
+      const allComments = rawComments.map((comment) => {
+        const commentData: RedditComment = {
+          id: comment.id,
+          text: comment.body,
+          body: comment.body,
+          processed: "",
+          normalizedTokens: [],
+          score: comment.score,
+          author: comment.author ? comment.author.name : "[deleted]",
+          timestamp: new Date(comment.created_utc * 1000).toISOString(),
+          parentId: comment.parent_id,
+          replies: [],
+        };
+        return commentData;
+      });
+
       const commentMap = new Map<string, RedditComment>();
       const rootComments: RedditComment[] = [];
 
-      // First pass: Create map of all comments
-      filteredComments.forEach((comment) => {
+      allComments.forEach((comment) => {
         if (comment.id) {
           commentMap.set(comment.id, comment);
         }
       });
 
-      // Second pass: Build tree structure
-      filteredComments.forEach((comment) => {
+      allComments.forEach((comment) => {
         if (!comment.parentId) {
-          // If no parentId, treat as root comment
           rootComments.push(comment);
           return;
         }
 
         if (comment.parentId.startsWith("t3_")) {
-          // This is a top-level comment
           rootComments.push(comment);
         } else {
-          // This is a reply, find its parent and add it
           const parentId = comment.parentId.replace("t1_", "");
           const parent = commentMap.get(parentId);
           if (parent) {
             parent.replies.push(comment);
           } else {
-            // If parent not found, treat as root comment
             rootComments.push(comment);
           }
         }
       });
 
       postData.discussions.push({
+        id: post.id,
         title: postTitle,
         url: postUrl,
+        timestamp: new Date(post.created_utc * 1000).toISOString(),
         comments: rootComments,
       });
     }
 
+    // Update metadata with actual counts
+    const totalComments = postData.discussions.reduce(
+      (sum, discussion) => sum + discussion.comments.length,
+      0
+    );
+    postData.metadata.totalComments = totalComments;
+    postData.metadata.totalDiscussions = postData.discussions.length;
+
+    console.log(
+      `📊 Collected ${postData.discussions.length} discussions with ${totalComments} total comments`
+    );
     console.log(`🔄 Preprocessing data from r/${subredditName}...`);
     const processedData = preprocessRedditData(postData);
 
@@ -195,7 +212,7 @@ async function saveToFile(data: RedditData) {
   try {
     console.log("💾 Saving data to file system...");
     await saveRedditData(data);
-    console.log(`✅ Successfully stored data for r/${data.subredditName}`);
+    console.log(`✅ Successfully stored data for r/${data.subreddit}`);
   } catch (error) {
     console.error("❌ Failed to save data to file:", error);
     throw error;

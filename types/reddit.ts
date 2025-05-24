@@ -1,15 +1,20 @@
 import type { SentimentAnalysis, SentimentScores } from "./sentiment";
+import type { Entity, EntityChain, SubredditEntityAnalysis } from "./entities";
 
 export interface RedditComment {
-  text: string;
+  id: string;
+  body: string; // Main comment text
+  text: string; // Processed version
   processed: string;
   normalizedTokens: string[];
   score: number;
+  author: string;
+  timestamp: string;
   replies: RedditComment[];
   sentiment?: SentimentAnalysis;
+  entities?: Entity[];
   // Temporary fields for building comment tree
   parentId?: string;
-  id?: string;
 }
 
 export interface ProcessedComment {
@@ -25,22 +30,37 @@ export interface ProcessedComment {
   };
   score?: number;
   sentiment?: SentimentAnalysis;
+  entities?: Entity[];
 }
 
 export interface Discussion {
+  id: string;
   title: string;
   url: string;
+  content?: string; // Post content (if available)
+  timestamp: string;
   comments: RedditComment[];
   processedComments?: ProcessedComment[];
   sentiment?: SentimentAnalysis;
+  entities?: Entity[];
+  entityChains?: EntityChain[];
 }
 
 export interface RedditData {
-  subredditName: string;
+  subreddit: string; // Updated from subredditName
   query: string;
   category: string;
+  metadata: {
+    query: string;
+    timeframe: string;
+    minScore: number;
+    totalComments: number;
+    totalDiscussions: number;
+    scrapedAt: string;
+  };
   discussions: Discussion[];
   sentiment?: SentimentAnalysis;
+  entityAnalysis?: SubredditEntityAnalysis;
 }
 
 export type ProcessedRedditData = RedditData & {

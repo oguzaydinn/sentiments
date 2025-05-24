@@ -6,8 +6,9 @@ export interface SentimentScores {
 }
 
 export interface SentimentAnalysis {
-  original: SentimentScores;
-  processed?: SentimentScores;
-  overall: SentimentScores;
-  label: string;
+  positivity: number; // VADER pos score
+  negativity: number; // VADER neg score
+  neutrality: number; // VADER neu score
+  compound: number; // VADER compound score
+  overall: "positive" | "negative" | "neutral"; // Classification
 }
