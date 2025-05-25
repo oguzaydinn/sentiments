@@ -66,7 +66,7 @@ bun install
 
 ```bash
 cd ../client
-npm install
+bun install
 ```
 
 ### 4. Environment Configuration
@@ -111,7 +111,7 @@ bun run dev
 
 ```bash
 cd client
-npm run dev
+bun run dev
 ```
 
 The application will be available at:
@@ -133,8 +133,8 @@ bun start
 
 ```bash
 cd client
-npm run build
-npm run preview
+bun run build
+bun run preview
 ```
 
 ## API Endpoints
@@ -157,7 +157,7 @@ npm run preview
 ```json
 {
   "query": "search term",
-  "category": "ai|politics|tech|gaming|science|news",
+  "category": "technology|science|politics|finance|gaming|health|entertainment|sports|education|lifestyle|business|social"
   "timeframe": "hour|day|week|month|year|all",
   "minPostScore": 50,
   "includeEntities": true
@@ -166,14 +166,20 @@ npm run preview
 
 ## Available Categories
 
-| Category     | Subreddits                                                |
-| ------------ | --------------------------------------------------------- |
-| **ai**       | MachineLearning, artificial, singularity, ChatGPT, OpenAI |
-| **politics** | politics, PoliticalDiscussion, worldnews, news            |
-| **tech**     | technology, programming, webdev, javascript, reactjs      |
-| **gaming**   | gaming, Games, pcgaming, NintendoSwitch, PS5              |
-| **science**  | science, askscience, space, Physics, biology              |
-| **news**     | news, worldnews, UpliftingNews, nottheonion               |
+| Category          | Subreddits                                                                                                         |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------ |
+| **technology**    | technology, Futurology, OpenAI, artificial, MachineLearning, programming, coding, webdev, devops, cybersecurity    |
+| **science**       | science, Physics, Space, chemistry, biology, math, astronomy, neuroscience, geology, environment                   |
+| **politics**      | politics, worldnews, geopolitics, europe, news, politicaldiscussion, conservative, liberal, democrats, republicans |
+| **finance**       | finance, cryptocurrency, stocks, investing, personalfinance, wallstreetbets, economics, bitcoin, ethereum, trading |
+| **gaming**        | gaming, pcgaming, gamedev, PS5, XboxSeriesX, NintendoSwitch, Steam, indiegaming, esports, gamingnews               |
+| **health**        | health, medicine, Fitness, nutrition, mentalhealth, yoga, weightlifting, running, diet, wellness                   |
+| **entertainment** | movies, television, music, books, comics, anime, netflix, marvel, starwars, gaming                                 |
+| **sports**        | sports, nba, nfl, soccer, baseball, hockey, tennis, formula1, golf, cricket                                        |
+| **education**     | education, college, university, teaching, learnprogramming, math, science, history, philosophy, literature         |
+| **lifestyle**     | food, travel, fashion, beauty, home, gardening, cooking, photography, art, design                                  |
+| **business**      | business, entrepreneur, startups, marketing, sales, smallbusiness, consulting, management, careers, jobs           |
+| **social**        | socialmedia, privacy, technology, internet, webdev, programming, cybersecurity, datahoarder, netsec, hacking       |
 
 ## Usage Examples
 
@@ -196,8 +202,8 @@ npm run preview
 curl -X POST http://localhost:3001/api/analyze \
   -H "Content-Type: application/json" \
   -d '{
-    "query": "artificial intelligence",
-    "category": "ai",
+    "query": "gta vi",
+    "category": "gaming",
     "timeframe": "week",
     "minPostScore": 100,
     "includeEntities": true
@@ -215,7 +221,7 @@ curl http://localhost:3001/api/recent?limit=5
 ### Backend
 
 - **Runtime**: Bun
-- **Framework**: Hono (lightweight web framework)
+- **Framework**: Hono
 - **Database**: MongoDB with Prisma ORM
 - **Reddit API**: snoowrap
 - **Sentiment Analysis**: vader-sentiment
@@ -225,7 +231,7 @@ curl http://localhost:3001/api/recent?limit=5
 ### Frontend
 
 - **Framework**: React with TypeScript
-- **Visualization**: D3.js for network graphs
+- **Visualization**: D3.js
 - **Styling**: Tailwind CSS
 - **Icons**: Lucide React
 - **Date Handling**: date-fns
