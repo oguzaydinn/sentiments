@@ -6,12 +6,28 @@ import type {
   EntityChain,
   SubredditEntityAnalysis,
 } from "./types/entities";
-import type { SentimentAnalysis, SentimentScores } from "./types/sentiment";
 import type { RedditComment, RedditData, Discussion } from "./types/reddit";
+
+// Define the sentiment structure used in this file to match the current app structure
+interface EntitySentimentAnalysis {
+  original: {
+    neg: number;
+    neu: number;
+    pos: number;
+    compound: number;
+  };
+  overall: {
+    neg: number;
+    neu: number;
+    pos: number;
+    compound: number;
+  };
+  label: "positive" | "negative" | "neutral";
+}
 
 interface EntityMention {
   entity: Entity;
-  sentiment: SentimentAnalysis;
+  sentiment: EntitySentimentAnalysis;
   score: number; // Comment upvote score
   timestamp: string;
   postId: string;
@@ -205,7 +221,7 @@ export class NERService {
   private analyzeEntitySentiment(
     entity: Entity,
     fullText: string
-  ): SentimentAnalysis {
+  ): EntitySentimentAnalysis {
     // Extract context around the entity (±50 characters)
     const start = Math.max(0, entity.startIndex - 50);
     const end = Math.min(fullText.length, entity.endIndex + 50);
@@ -215,11 +231,19 @@ export class NERService {
       vader.SentimentIntensityAnalyzer.polarity_scores(context);
 
     return {
-      positivity: vaderResult.pos,
-      negativity: vaderResult.neg,
-      neutrality: vaderResult.neu,
-      compound: vaderResult.compound,
-      overall: this.classifySentiment(vaderResult.compound),
+      original: {
+        neg: vaderResult.neg,
+        neu: vaderResult.neu,
+        pos: vaderResult.pos,
+        compound: vaderResult.compound,
+      },
+      overall: {
+        neg: vaderResult.neg,
+        neu: vaderResult.neu,
+        pos: vaderResult.pos,
+        compound: vaderResult.compound,
+      },
+      label: this.classifySentiment(vaderResult.compound),
     };
   }
 
@@ -293,11 +317,9 @@ export class NERService {
           totalScore: 0,
           sentimentTrend: [],
           averageSentiment: {
-            positivity: 0,
-            negativity: 0,
-            neutrality: 0,
-            compound: 0,
-            overall: "neutral",
+            original: { neg: 0, neu: 1, pos: 0, compound: 0 },
+            overall: { neg: 0, neu: 1, pos: 0, compound: 0 },
+            label: "neutral",
           },
         });
       }
@@ -331,18 +353,37 @@ export class NERService {
           (acc, trend) => {
             const weight = trend.score / totalScoreWeight;
             return {
-              positivity: acc.positivity + trend.sentiment.positivity * weight,
-              negativity: acc.negativity + trend.sentiment.negativity * weight,
-              neutrality: acc.neutrality + trend.sentiment.neutrality * weight,
-              compound: acc.compound + trend.sentiment.compound * weight,
+              neg: acc.neg + trend.sentiment.original.neg * weight,
+              neu: acc.neu + trend.sentiment.original.neu * weight,
+              pos: acc.pos + trend.sentiment.original.pos * weight,
+              compound:
+                acc.compound + trend.sentiment.original.compound * weight,
             };
           },
-          { positivity: 0, negativity: 0, neutrality: 0, compound: 0 }
+          { neg: 0, neu: 0, pos: 0, compound: 0 }
         );
 
         chain.averageSentiment = {
-          ...weightedSentiment,
-          overall: this.classifySentiment(weightedSentiment.compound),
+          original: {
+            neg: weightedSentiment.neg,
+            neu: weightedSentiment.neu,
+            pos: weightedSentiment.pos,
+            compound: weightedSentiment.compound,
+          },
+          overall: {
+            neg: weightedSentiment.neg,
+            neu: weightedSentiment.neu,
+            pos: weightedSentiment.pos,
+            compound: weightedSentiment.compound,
+          },
+          label: this.classifySentiment(weightedSentiment.compound),
+        };
+      } else {
+        // Default neutral sentiment if no scores
+        chain.averageSentiment = {
+          original: { neg: 0, neu: 1, pos: 0, compound: 0 },
+          overall: { neg: 0, neu: 1, pos: 0, compound: 0 },
+          label: "neutral",
         };
       }
     }

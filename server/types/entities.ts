@@ -1,5 +1,22 @@
 import type { SentimentAnalysis } from "./sentiment";
 
+// Define the sentiment structure to match the current app structure
+interface EntitySentimentAnalysis {
+  original: {
+    neg: number;
+    neu: number;
+    pos: number;
+    compound: number;
+  };
+  overall: {
+    neg: number;
+    neu: number;
+    pos: number;
+    compound: number;
+  };
+  label: "positive" | "negative" | "neutral";
+}
+
 export interface Entity {
   text: string; // The original text mention
   normalizedText: string; // Cleaned/normalized version
@@ -15,11 +32,11 @@ export interface EntityChain {
   entity: Entity;
   totalMentions: number;
   uniquePosts: number; // Changed from Set to number for JSON serialization
-  averageSentiment: SentimentAnalysis; // Weighted by comment scores
+  averageSentiment: EntitySentimentAnalysis; // Weighted by comment scores
   totalScore: number; // Sum of all comment scores mentioning this entity
   sentimentTrend: Array<{
     timestamp: string;
-    sentiment: SentimentAnalysis;
+    sentiment: EntitySentimentAnalysis;
     score: number; // Comment score for this mention
   }>;
 }

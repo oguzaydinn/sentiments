@@ -4,9 +4,13 @@ import { logger } from "hono/logger";
 import { fetchComments, initializeReddit } from "./reddit";
 import { categories, type Category } from "./types/categories";
 import type { RedditData } from "./types/reddit";
+import { NERService } from "./ner";
 
 // Initialize Hono app
 const app = new Hono();
+
+// Initialize NER service
+let nerService: NERService | null = null;
 
 // Middleware
 app.use("*", logger());
@@ -41,7 +45,7 @@ app.get("/api/test", (c) => {
 });
 
 // Helper function to transform Reddit data into network structure
-function buildNetworkData(data: RedditData) {
+async function buildNetworkData(data: RedditData, entityAnalyses: any[] = []) {
   // Calculate comment count recursively
   const countComments = (comments: any[]): number => {
     return comments.reduce((count, comment) => {
@@ -49,14 +53,74 @@ function buildNetworkData(data: RedditData) {
     }, 0);
   };
 
+  // Consolidate entity analyses from all subreddits
+  let consolidatedEntityAnalysis = null;
+  if (entityAnalyses.length > 0) {
+    // Merge all entity chains from different subreddits
+    const allEntityChains = entityAnalyses.flatMap(
+      (analysis) => analysis.entityChains
+    );
+
+    // Group entities by normalized text and type, combining scores and mentions
+    const entityMap = new Map();
+    for (const chain of allEntityChains) {
+      const key = `${chain.entity.type}:${chain.entity.normalizedText}`;
+      if (!entityMap.has(key)) {
+        entityMap.set(key, {
+          entity: chain.entity,
+          totalMentions: 0,
+          totalScore: 0,
+          sentimentTrend: [],
+          averageSentiment: chain.averageSentiment,
+        });
+      }
+      const existing = entityMap.get(key);
+      existing.totalMentions += chain.totalMentions;
+      existing.totalScore += chain.totalScore;
+      existing.sentimentTrend.push(...chain.sentimentTrend);
+    }
+
+    const consolidatedChains = Array.from(entityMap.values()).sort(
+      (a, b) => b.totalScore - a.totalScore
+    );
+
+    consolidatedEntityAnalysis = {
+      query: data.query,
+      timestamp: new Date().toISOString(),
+      totalEntities: consolidatedChains.length,
+      totalMentions: entityAnalyses.reduce(
+        (sum, analysis) => sum + analysis.totalMentions,
+        0
+      ),
+      totalScore: entityAnalyses.reduce(
+        (sum, analysis) => sum + analysis.totalScore,
+        0
+      ),
+      entityBreakdown: {
+        persons: consolidatedChains.filter((c) => c.entity.type === "PERSON")
+          .length,
+        organizations: consolidatedChains.filter(
+          (c) => c.entity.type === "ORGANIZATION"
+        ).length,
+        locations: consolidatedChains.filter(
+          (c) => c.entity.type === "LOCATION"
+        ).length,
+      },
+      entityChains: consolidatedChains,
+    };
+  }
+
   // Transform discussions to include required fields
-  const transformedDiscussions = data.discussions.map((discussion) => {
+  const transformedDiscussions = data.discussions.map((discussion, index) => {
     const commentCount = countComments(discussion.comments);
 
     // Calculate weighted sentiment if available
     const commentSentiments = discussion.comments
       .filter((c) => c.sentiment)
-      .map((c) => ({ sentiment: c.sentiment!.compound, score: c.score }));
+      .map((c) => ({
+        sentiment: c.sentiment!.original.compound,
+        score: c.score,
+      }));
 
     const weightedSentiment =
       commentSentiments.length > 0
@@ -66,12 +130,17 @@ function buildNetworkData(data: RedditData) {
 
     return {
       ...discussion,
-      subreddit: data.subreddit,
-      score: 0, // Post score would come from Reddit API
+      // The subreddit field is now available from the discussion object
+      score: 0, // Default score since we don't have post scores yet
       commentCount,
       weightedSentiment,
     };
   });
+
+  // Extract unique subreddits from discussions
+  const uniqueSubreddits = [
+    ...new Set(transformedDiscussions.map((d) => (d as any).subreddit)),
+  ];
 
   return {
     id: `${data.category}-${data.query}-${Date.now()}`,
@@ -84,13 +153,24 @@ function buildNetworkData(data: RedditData) {
     scrapedAt: data.metadata.scrapedAt,
     createdAt: new Date().toISOString(),
     discussions: transformedDiscussions,
-    subreddits: [data.subreddit],
+    subreddits: uniqueSubreddits,
     networkData: {
       nodes: [],
       links: [],
       centerNode: { id: "query", label: data.query, type: "query" },
     },
-    entities: [],
+    entities: consolidatedEntityAnalysis?.entityChains.slice(0, 20) || [], // Top 20 entities overall
+    entityAnalysis: consolidatedEntityAnalysis
+      ? {
+          query: consolidatedEntityAnalysis.query,
+          timestamp: consolidatedEntityAnalysis.timestamp,
+          totalEntities: consolidatedEntityAnalysis.totalEntities,
+          totalMentions: consolidatedEntityAnalysis.totalMentions,
+          totalScore: consolidatedEntityAnalysis.totalScore,
+          entityBreakdown: consolidatedEntityAnalysis.entityBreakdown,
+          entityChains: consolidatedEntityAnalysis.entityChains.slice(0, 10), // Top 10 for detailed analysis
+        }
+      : undefined,
   };
 }
 
@@ -135,12 +215,20 @@ app.post("/api/analyze", async (c) => {
       // Initialize Reddit client
       const reddit = await initializeReddit();
 
+      // Initialize NER service if entities are requested and not already initialized
+      if (includeEntities && !nerService) {
+        console.log("🤖 Initializing NER service for entity analysis...");
+        nerService = new NERService();
+        await nerService.initialize();
+      }
+
       // Get subreddits for category
       const subreddits = categories[category as Category];
       const allData: RedditData[] = [];
 
-      // Process each subreddit (limit to first 2 for now to keep it fast)
-      const subredditsToProcess = subreddits.slice(0, 2);
+      // Process all subreddits in the category for comprehensive results
+      const subredditsToProcess = subreddits;
+      const allEntityAnalyses: any[] = [];
 
       for (const subreddit of subredditsToProcess) {
         try {
@@ -157,6 +245,25 @@ app.post("/api/analyze", async (c) => {
           );
 
           if (data) {
+            // Process entities for this individual subreddit if requested
+            if (includeEntities && nerService) {
+              try {
+                console.log(
+                  `🔍 Starting entity analysis for r/${subreddit}...`
+                );
+                const entityAnalysis = await nerService.analyzeEntities(data);
+                allEntityAnalyses.push(entityAnalysis);
+                console.log(
+                  `✅ Found ${entityAnalysis.totalEntities} unique entities in r/${subreddit}`
+                );
+              } catch (entityError) {
+                console.error(
+                  `❌ Error during entity analysis for r/${subreddit}:`,
+                  entityError
+                );
+              }
+            }
+
             allData.push(data);
           }
         } catch (error) {
@@ -175,7 +282,14 @@ app.post("/api/analyze", async (c) => {
         );
       }
 
-      // Merge all data into a single structure
+      // Merge all data into a single structure, preserving subreddit info for each discussion
+      const allDiscussions = allData.flatMap((subredditData) =>
+        subredditData.discussions.map((discussion) => ({
+          ...discussion,
+          subreddit: subredditData.subreddit, // Preserve the original subreddit for each discussion
+        }))
+      );
+
       const consolidatedData: RedditData = {
         subreddit: allData.map((d) => d.subreddit).join(", "),
         query,
@@ -194,11 +308,14 @@ app.post("/api/analyze", async (c) => {
           ),
           scrapedAt: new Date().toISOString(),
         },
-        discussions: allData.flatMap((d) => d.discussions),
+        discussions: allDiscussions,
       };
 
       // Transform to network structure
-      const networkData = buildNetworkData(consolidatedData);
+      const networkData = await buildNetworkData(
+        consolidatedData,
+        allEntityAnalyses
+      );
 
       console.log(
         `✅ Analysis completed: ${networkData.totalComments} comments, ${networkData.totalDiscussions} discussions`

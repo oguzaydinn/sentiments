@@ -2,7 +2,9 @@ import type { RedditData, RedditComment } from "./types/reddit";
 import type { SentimentScores, SentimentAnalysis } from "./types/sentiment";
 import VADER from "vader-sentiment";
 
-function getSentimentLabel(compound: number): string {
+function getSentimentLabel(
+  compound: number
+): "positive" | "negative" | "neutral" {
   if (compound >= 0.05) return "positive";
   if (compound <= -0.05) return "negative";
   return "neutral";
@@ -27,8 +29,36 @@ function calculateWeightedAverageSentiment(
     return { compound: 0, pos: 0, neu: 0, neg: 0 };
   }
 
+  // Filter out comments with zero or negative scores for weighting
+  const validComments = comments.filter((comment) => comment.score > 0);
+
+  if (validComments.length === 0) {
+    // If no comments have positive scores, fall back to simple average
+    const simpleAvg = comments.reduce(
+      (acc, comment) => {
+        const sentiment = VADER.SentimentIntensityAnalyzer.polarity_scores(
+          comment.text
+        );
+        return {
+          compound: acc.compound + sentiment.compound,
+          pos: acc.pos + sentiment.pos,
+          neu: acc.neu + sentiment.neu,
+          neg: acc.neg + sentiment.neg,
+        };
+      },
+      { compound: 0, pos: 0, neu: 0, neg: 0 }
+    );
+
+    return {
+      compound: simpleAvg.compound / comments.length,
+      pos: simpleAvg.pos / comments.length,
+      neu: simpleAvg.neu / comments.length,
+      neg: simpleAvg.neg / comments.length,
+    };
+  }
+
   let totalScore = 0;
-  const weightedSum = comments.reduce(
+  const weightedSum = validComments.reduce(
     (acc, comment) => {
       const sentiment = VADER.SentimentIntensityAnalyzer.polarity_scores(
         comment.text
@@ -53,17 +83,22 @@ function calculateWeightedAverageSentiment(
 }
 
 export function analyzeRedditData(data: RedditData): RedditData {
-  // Analyze sentiment for each comment
+  // Recursive function to analyze sentiment for comments and all their replies
+  const analyzeCommentSentimentRecursive = (comment: RedditComment) => {
+    comment.sentiment = analyzeCommentSentiment(comment);
+
+    // Process replies recursively
+    if (comment.replies && comment.replies.length > 0) {
+      comment.replies.forEach((reply) => {
+        analyzeCommentSentimentRecursive(reply);
+      });
+    }
+  };
+
+  // Analyze sentiment for each comment and all its replies
   data.discussions.forEach((discussion) => {
     discussion.comments.forEach((comment) => {
-      comment.sentiment = analyzeCommentSentiment(comment);
-
-      // Process replies recursively
-      if (comment.replies) {
-        comment.replies.forEach((reply) => {
-          reply.sentiment = analyzeCommentSentiment(reply);
-        });
-      }
+      analyzeCommentSentimentRecursive(comment);
     });
 
     // Calculate discussion-level sentiment using weighted average

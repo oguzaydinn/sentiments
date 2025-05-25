@@ -131,7 +131,59 @@ async function fetchComments(
         `📝 Processing ${rawComments.length} comments (all scores included)`
       );
 
+      // Debug: Check if any comments have replies in the original snoowrap format
+      const rawCommentsWithReplies = rawComments.filter(
+        (comment) => comment.replies && comment.replies.length > 0
+      );
+      console.log(
+        `🔄 Found ${rawCommentsWithReplies.length} comments with replies out of ${rawComments.length} total`
+      );
+
+      if (rawCommentsWithReplies.length > 0) {
+        console.log(`📋 Sample comment with replies:`, {
+          id: rawCommentsWithReplies[0].id,
+          body: rawCommentsWithReplies[0].body?.slice(0, 50),
+          repliesCount: rawCommentsWithReplies[0].replies?.length || 0,
+          firstReplyBody: rawCommentsWithReplies[0].replies?.[0]?.body?.slice(
+            0,
+            30
+          ),
+          repliesType: typeof rawCommentsWithReplies[0].replies,
+          repliesIsArray: Array.isArray(rawCommentsWithReplies[0].replies),
+        });
+      }
+
+      // Debug: Check the structure of a raw comment
+      if (rawComments.length > 0) {
+        console.log(`🔍 Raw comment structure:`, {
+          id: rawComments[0].id,
+          hasReplies: !!rawComments[0].replies,
+          repliesLength: rawComments[0].replies?.length,
+          parentId: rawComments[0].parent_id,
+          keys: Object.keys(rawComments[0]).filter(
+            (key) => !key.startsWith("_")
+          ),
+        });
+      }
+
       const allComments = rawComments.map((comment) => {
+        // Convert snoowrap replies to array if they exist
+        let repliesArray: any[] = [];
+        if (comment.replies && comment.replies.length > 0) {
+          try {
+            // snoowrap replies might be a Listing object, convert to array
+            repliesArray = Array.from(comment.replies);
+            console.log(
+              `📥 Converted ${repliesArray.length} replies for comment ${comment.id}`
+            );
+          } catch (error) {
+            console.log(
+              `⚠️ Failed to convert replies for comment ${comment.id}`
+            );
+            repliesArray = [];
+          }
+        }
+
         const commentData: RedditComment = {
           id: comment.id,
           text: comment.body,
@@ -142,7 +194,18 @@ async function fetchComments(
           author: comment.author ? comment.author.name : "[deleted]",
           timestamp: new Date(comment.created_utc * 1000).toISOString(),
           parentId: comment.parent_id,
-          replies: [],
+          replies: repliesArray.map((reply) => ({
+            id: reply.id,
+            text: reply.body,
+            body: reply.body,
+            processed: "",
+            normalizedTokens: [],
+            score: reply.score,
+            author: reply.author ? reply.author.name : "[deleted]",
+            timestamp: new Date(reply.created_utc * 1000).toISOString(),
+            parentId: reply.parent_id,
+            replies: [], // For now, only handle one level of replies
+          })),
         };
         return commentData;
       });
@@ -150,30 +213,44 @@ async function fetchComments(
       const commentMap = new Map<string, RedditComment>();
       const rootComments: RedditComment[] = [];
 
+      // Since we're now handling replies directly in the mapping above,
+      // we just need to add all top-level comments to rootComments
       allComments.forEach((comment) => {
         if (comment.id) {
           commentMap.set(comment.id, comment);
         }
-      });
 
-      allComments.forEach((comment) => {
-        if (!comment.parentId) {
+        // Only add comments that are direct replies to the post (not replies to other comments)
+        if (!comment.parentId || comment.parentId.startsWith("t3_")) {
           rootComments.push(comment);
-          return;
-        }
-
-        if (comment.parentId.startsWith("t3_")) {
-          rootComments.push(comment);
-        } else {
-          const parentId = comment.parentId.replace("t1_", "");
-          const parent = commentMap.get(parentId);
-          if (parent) {
-            parent.replies.push(comment);
-          } else {
-            rootComments.push(comment);
-          }
         }
       });
+
+      console.log(
+        `🌳 Built comment tree: ${rootComments.length} root comments`
+      );
+      const totalReplies = rootComments.reduce(
+        (sum, comment) => sum + comment.replies.length,
+        0
+      );
+      console.log(`📊 Total replies in tree: ${totalReplies}`);
+
+      // Debug: Show sample of reply structure
+      const finalCommentsWithReplies = rootComments.filter(
+        (c) => c.replies.length > 0
+      );
+      if (finalCommentsWithReplies.length > 0) {
+        console.log(`🔍 Sample comment with replies:`, {
+          id: finalCommentsWithReplies[0].id,
+          text: finalCommentsWithReplies[0].text.slice(0, 50),
+          repliesCount: finalCommentsWithReplies[0].replies.length,
+          firstReply: {
+            id: finalCommentsWithReplies[0].replies[0].id,
+            text: finalCommentsWithReplies[0].replies[0].text.slice(0, 30),
+            score: finalCommentsWithReplies[0].replies[0].score,
+          },
+        });
+      }
 
       postData.discussions.push({
         id: post.id,
