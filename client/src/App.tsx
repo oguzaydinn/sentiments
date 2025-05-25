@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import AnalysisForm from "./components/AnalysisForm";
 import NetworkVisualization from "./components/NetworkVisualization";
+import RecentQueries from "./components/RecentQueries";
 import { testAPI, healthCheck } from "./services/api";
 import type { AnalysisResult } from "./types/analysis";
 
@@ -74,6 +75,37 @@ function App() {
 
     setIsLoading(true);
     setCurrentAnalysis(null);
+  };
+
+  const handleLoadCachedQuery = async (
+    id: string,
+    query: string,
+    category: string
+  ) => {
+    console.log(
+      `🎯 Loading cached query: "${query}" (${category}) with ID: ${id}`
+    );
+
+    try {
+      setIsLoading(true);
+      setCurrentAnalysis(null);
+
+      const response = await fetch(`http://localhost:3001/api/analysis/${id}`);
+      const result = await response.json();
+
+      if (result.success) {
+        console.log("✅ Cached analysis loaded successfully");
+        setCurrentAnalysis(result);
+      } else {
+        console.error("❌ Failed to load cached analysis:", result.error);
+        // Could show an error message to user here
+      }
+    } catch (error) {
+      console.error("❌ Error loading cached analysis:", error);
+      // Could show an error message to user here
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -172,27 +204,45 @@ function App() {
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {!currentAnalysis && !isLoading && (
-          <div className="text-center py-12">
-            <Search className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-            <h2 className="text-3xl font-bold text-gray-900 mb-2">
-              Explore Reddit Sentiment Networks
-            </h2>
-            <p className="text-lg text-gray-600 mb-8 max-w-2xl mx-auto">
-              Enter a search query to create an interactive network
-              visualization showing how discussions and sentiment flow across
-              Reddit communities.
-            </p>
+          <div>
+            <div className="text-center py-12">
+              <Search className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+              <h2 className="text-3xl font-bold text-gray-900 mb-2">
+                Explore Reddit Sentiment Networks
+              </h2>
+              <p className="text-lg text-gray-600 mb-8 max-w-2xl mx-auto">
+                Enter a search query to create an interactive network
+                visualization showing how discussions and sentiment flow across
+                Reddit communities.
+              </p>
+            </div>
+
+            {/* Two-column layout for form and recent queries */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              <div className="lg:col-span-2">
+                <AnalysisForm
+                  onAnalysisStart={handleAnalysisStart}
+                  onAnalysisComplete={handleAnalysisComplete}
+                  isLoading={isLoading}
+                />
+              </div>
+              <div className="lg:col-span-1">
+                <RecentQueries onLoadQuery={handleLoadCachedQuery} />
+              </div>
+            </div>
           </div>
         )}
 
-        {/* Analysis Form */}
-        <div className="mb-8">
-          <AnalysisForm
-            onAnalysisStart={handleAnalysisStart}
-            onAnalysisComplete={handleAnalysisComplete}
-            isLoading={isLoading}
-          />
-        </div>
+        {/* Analysis Form for when there is a current analysis */}
+        {currentAnalysis && !isLoading && (
+          <div className="mb-8">
+            <AnalysisForm
+              onAnalysisStart={handleAnalysisStart}
+              onAnalysisComplete={handleAnalysisComplete}
+              isLoading={isLoading}
+            />
+          </div>
+        )}
 
         {/* Loading State */}
         {isLoading && (

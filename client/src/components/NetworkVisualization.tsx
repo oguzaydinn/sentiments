@@ -333,6 +333,9 @@ export default function NetworkVisualization({
         currentMode: viewState.mode,
       });
 
+      // Clear tooltip when node is clicked
+      setTooltip(null);
+
       if (nodeType === "topic") {
         console.log("📋 Switching to topic-expanded mode for:", nodeId);
         setViewState({
