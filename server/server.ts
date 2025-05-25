@@ -5,6 +5,13 @@ import { fetchComments, initializeReddit } from "./reddit";
 import { categories, type Category } from "./types/categories";
 import type { RedditData } from "./types/reddit";
 import { NERService } from "./ner";
+import {
+  getCachedAnalysis,
+  saveConsolidatedAnalysis,
+  getRecentQueries,
+  getAnalysisById,
+  cleanupOldAnalyses,
+} from "./storage";
 
 // Initialize Hono app
 const app = new Hono();
@@ -178,23 +185,60 @@ async function buildNetworkData(data: RedditData, entityAnalyses: any[] = []) {
 app.post("/api/analyze", async (c) => {
   try {
     const body = await c.req.json();
-    const {
-      category,
-      query,
-      timeframe = "week",
-      minPostScore = 50,
-      includeEntities = false,
-    } = body;
+    const { query, category, timeframe, minPostScore, includeEntities } = body;
 
-    if (!category || !query) {
+    if (!query || !category) {
       return c.json(
-        {
-          success: false,
-          error: "Category and query are required",
-        },
+        { success: false, error: "Query and category are required" },
         400
       );
     }
+
+    console.log(`🔍 Starting analysis for "${query}" in ${category}`);
+
+    // Check cache first (within last 24 hours)
+    const cachedResult = await getCachedAnalysis(
+      query,
+      category,
+      timeframe || "week",
+      minPostScore || 50
+    );
+
+    if (cachedResult) {
+      console.log(`🎯 Returning cached result for "${query}"`);
+
+      // Transform cached data to network structure
+      const networkData = await buildNetworkData(
+        {
+          subreddit: cachedResult.discussions
+            .map((d: any) => d.subreddit)
+            .join(", "),
+          query: cachedResult.query,
+          category: cachedResult.category,
+          metadata: {
+            query: cachedResult.query,
+            timeframe: cachedResult.timeframe,
+            minScore: cachedResult.minScore,
+            totalComments: cachedResult.totalComments,
+            totalDiscussions: cachedResult.totalDiscussions,
+            scrapedAt: cachedResult.createdAt.toISOString(),
+          },
+          discussions: cachedResult.discussions,
+          sentiment: cachedResult.sentimentAnalysis,
+        },
+        cachedResult.entityAnalysis ? [cachedResult.entityAnalysis] : []
+      );
+
+      return c.json({
+        success: true,
+        cached: true,
+        data: networkData,
+        message: `Cached analysis for "${query}" in ${category}`,
+      });
+    }
+
+    // No cache found, proceed with fresh analysis
+    console.log(`🔄 No cache found, fetching fresh data for "${query}"`);
 
     // Validate category
     if (!categories[category as Category]) {
@@ -208,8 +252,6 @@ app.post("/api/analyze", async (c) => {
         400
       );
     }
-
-    console.log(`🔍 Starting analysis for "${query}" in ${category}`);
 
     try {
       // Initialize Reddit client
@@ -317,6 +359,17 @@ app.post("/api/analyze", async (c) => {
         allEntityAnalyses
       );
 
+      // Save to database for caching
+      try {
+        const analysisId = await saveConsolidatedAnalysis(
+          consolidatedData,
+          allEntityAnalyses
+        );
+        console.log(`💾 Analysis saved to database with ID: ${analysisId}`);
+      } catch (saveError) {
+        console.warn(`⚠️ Failed to save to database (continuing):`, saveError);
+      }
+
       console.log(
         `✅ Analysis completed: ${networkData.totalComments} comments, ${networkData.totalDiscussions} discussions`
       );
@@ -362,6 +415,103 @@ app.get("/api/categories", (c) => {
   });
 });
 
+// Get recent queries
+app.get("/api/recent", async (c) => {
+  try {
+    const limit = Number(c.req.query("limit")) || 10;
+    const recentQueries = await getRecentQueries(limit);
+
+    return c.json({
+      success: true,
+      data: recentQueries,
+    });
+  } catch (error) {
+    console.error("Error fetching recent queries:", error);
+    return c.json(
+      {
+        success: false,
+        error: "Failed to fetch recent queries",
+      },
+      500
+    );
+  }
+});
+
+// Get analysis by ID
+app.get("/api/analysis/:id", async (c) => {
+  try {
+    const id = c.req.param("id");
+    const analysis = await getAnalysisById(id);
+
+    if (!analysis) {
+      return c.json(
+        {
+          success: false,
+          error: "Analysis not found",
+        },
+        404
+      );
+    }
+
+    // Transform to network structure
+    const networkData = await buildNetworkData(
+      {
+        subreddit: analysis.discussions.map((d: any) => d.subreddit).join(", "),
+        query: analysis.query,
+        category: analysis.category,
+        metadata: {
+          query: analysis.query,
+          timeframe: analysis.timeframe,
+          minScore: analysis.minScore,
+          totalComments: analysis.totalComments,
+          totalDiscussions: analysis.totalDiscussions,
+          scrapedAt: analysis.createdAt.toISOString(),
+        },
+        discussions: analysis.discussions,
+        sentiment: analysis.sentimentAnalysis,
+      },
+      analysis.entityAnalysis ? [analysis.entityAnalysis] : []
+    );
+
+    return c.json({
+      success: true,
+      cached: true,
+      data: networkData,
+      message: `Analysis "${analysis.query}" in ${analysis.category}`,
+    });
+  } catch (error) {
+    console.error("Error fetching analysis by ID:", error);
+    return c.json(
+      {
+        success: false,
+        error: "Failed to fetch analysis",
+      },
+      500
+    );
+  }
+});
+
+// Cleanup old analyses (can be called manually or via cron)
+app.post("/api/cleanup", async (c) => {
+  try {
+    const deletedCount = await cleanupOldAnalyses();
+    return c.json({
+      success: true,
+      message: `Cleaned up ${deletedCount} old analyses`,
+      deletedCount,
+    });
+  } catch (error) {
+    console.error("Error during cleanup:", error);
+    return c.json(
+      {
+        success: false,
+        error: "Failed to cleanup old analyses",
+      },
+      500
+    );
+  }
+});
+
 // Start server
 const port = process.env.PORT || 3001;
 
@@ -370,7 +520,10 @@ console.log(`🎯 Available endpoints:`);
 console.log(`   GET  /health - Health check`);
 console.log(`   GET  /api/test - Test endpoint`);
 console.log(`   GET  /api/categories - Get available categories`);
+console.log(`   GET  /api/recent - Get recent queries`);
+console.log(`   GET  /api/analysis/:id - Get analysis by ID`);
 console.log(`   POST /api/analyze - Start Reddit analysis`);
+console.log(`   POST /api/cleanup - Cleanup old analyses`);
 console.log(
   `🔗 CORS enabled for: http://localhost:3000, http://localhost:5173`
 );
