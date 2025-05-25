@@ -1,44 +1,349 @@
-# Sentiments
+# Reddit Sentiment Network Analysis Tool
 
-A sentiment analysis tool designed to monitor and analyze public sentiment on social media platforms in response to specific news and events.
+A comprehensive web application for analyzing public sentiment and extracting named entities from Reddit discussions, featuring interactive network visualizations and persistent data storage.
 
-## v0.0.1 Features
+## Features
 
-- **Reddit Integration**: Fetches comments from subreddits such as `r/artificial`, `r/agi`, `r/MachineLearning`, and `r/OpenAI` based on a specified search query.
-- **Sentiment Analysis Preparation**: Collects and formats data for subsequent sentiment analysis.
+### 🌐 Web Application Architecture
 
-## Installation
+- **React Frontend**: Interactive web interface with real-time visualizations
+- **Hono Backend API**: Fast, lightweight server with RESTful endpoints
+- **Database Persistence**: MongoDB with Prisma ORM for data caching and storage
+- **Network Visualizations**: D3.js-powered interactive network graphs
 
-1. **Clone the Repository**:
-   ```bash
-   git clone https://github.com/oguzaydinn/sentiments.git
-   cd sentiments
-   ```
+### 📊 Core Analysis
 
-2. **Install Dependencies**:
-   This project uses [Bun](https://bun.sh/) as the package manager. Ensure Bun is installed, then run:
-   ```bash
-   bun install
-   ```
+- **Reddit Integration**: Fetches comments from curated subreddits based on categories and search queries
+- **Sentiment Analysis**: VADER sentiment analysis with score-weighted averaging
+- **Text Preprocessing**: Advanced text cleaning, normalization, and preprocessing
+- **Multi-Subreddit Analysis**: Analyzes discussions across multiple subreddits simultaneously
 
-## Usage
+### 🔍 Entity Recognition & Analysis
 
-1. **Set the Search Query**:
-   In the `reddit.ts` file, modify the `searchQuery` variable to specify the term you want to search for.
+- **Named Entity Recognition (NER)**: Extracts persons, organizations, and locations using compromise.js
+- **Entity Sentiment Analysis**: Analyzes sentiment specifically about each mentioned entity
+- **Entity Filtering**: Advanced filtering with confidence thresholds and blocklists
+- **Entity Visualization**: Shows top entities per subreddit with mention counts and sentiment
 
-2. **Run the Application**:
-   ```bash
-   bun run index.ts
-   ```
-   This will search the specified subreddits for the `searchQuery` term and save the data to `reddit_comments.json`.
+### 📈 Interactive Visualizations
 
-3. **Example Data**:
-   Refer to `example.jsonc` for sample comments that illustrate the data format prior to sentiment analysis.
+- **Network Overview**: Shows relationships between query, subreddits, and topics
+- **Topic Expansion**: Click topics to view detailed comment trees with reply chains
+- **Sentiment Color Coding**: Visual representation of positive/negative/neutral sentiment
+- **Interactive Tooltips**: Hover for detailed information about nodes
+- **Responsive Design**: Optimized for different screen sizes
 
-## Dependencies
+### 💾 Data Management
 
-- **Languages**: TypeScript
-- **Package Manager**: Bun
-- **Libraries**:
-  - `snoowrap`: For Reddit API interactions
-  - `axios`: For HTTP requests
+- **Caching System**: 24-hour cache for analysis results to improve performance
+- **Recent Queries**: View and reload previous analyses
+- **Automatic Cleanup**: Removes analyses older than 7 days
+- **Structured Storage**: Organized data storage with Prisma schema
+
+## Installation & Setup
+
+### Prerequisites
+
+- [Bun](https://bun.sh/) runtime
+- MongoDB Atlas account (or local MongoDB)
+- Reddit API credentials
+
+### 1. Clone the Repository
+
+```bash
+git clone <repository-url>
+cd SWE599
+```
+
+### 2. Backend Setup
+
+```bash
+cd server
+bun install
+```
+
+### 3. Frontend Setup
+
+```bash
+cd ../client
+npm install
+```
+
+### 4. Environment Configuration
+
+Create a `.env` file in the `server/` directory based on the example below:
+
+```env
+# Reddit API Credentials
+CLIENT_ID=your_reddit_client_id
+CLIENT_SECRET=your_reddit_client_secret
+USER_AGENT=your_app_name/1.0 by your_username
+REDDIT_USERNAME=your_reddit_username
+REDDIT_PASSWORD=your_reddit_password
+
+# Database Configuration
+DATABASE_URL=mongodb+srv://username:password@cluster.mongodb.net/database_name?retryWrites=true&w=majority&appName=your_app
+
+# Server Configuration
+PORT=3001
+```
+
+### 5. Database Setup
+
+```bash
+cd server
+bunx prisma generate
+bunx prisma db push
+```
+
+## Running the Application
+
+### Development Mode
+
+**Start the backend server:**
+
+```bash
+cd server
+bun run dev
+```
+
+**Start the frontend (in a new terminal):**
+
+```bash
+cd client
+npm run dev
+```
+
+The application will be available at:
+
+- Frontend: http://localhost:5173
+- Backend API: http://localhost:3001
+
+### Production Mode
+
+**Build and start backend:**
+
+```bash
+cd server
+bun run build
+bun start
+```
+
+**Build and serve frontend:**
+
+```bash
+cd client
+npm run build
+npm run preview
+```
+
+## API Endpoints
+
+### Core Endpoints
+
+- `GET /health` - Health check
+- `GET /api/test` - API test endpoint
+- `POST /api/analyze` - Start Reddit analysis
+- `GET /api/categories` - Get available categories
+
+### Data Management
+
+- `GET /api/recent` - Get recent queries
+- `GET /api/analysis/:id` - Get analysis by ID
+- `POST /api/cleanup` - Cleanup old analyses
+
+### Analysis Parameters
+
+```json
+{
+  "query": "search term",
+  "category": "ai|politics|tech|gaming|science|news",
+  "timeframe": "hour|day|week|month|year|all",
+  "minPostScore": 50,
+  "includeEntities": true
+}
+```
+
+## Available Categories
+
+| Category     | Subreddits                                                |
+| ------------ | --------------------------------------------------------- |
+| **ai**       | MachineLearning, artificial, singularity, ChatGPT, OpenAI |
+| **politics** | politics, PoliticalDiscussion, worldnews, news            |
+| **tech**     | technology, programming, webdev, javascript, reactjs      |
+| **gaming**   | gaming, Games, pcgaming, NintendoSwitch, PS5              |
+| **science**  | science, askscience, space, Physics, biology              |
+| **news**     | news, worldnews, UpliftingNews, nottheonion               |
+
+## Usage Examples
+
+### Web Interface
+
+1. **Open the application** at http://localhost:5173
+2. **Select a category** from the dropdown
+3. **Enter a search query** (e.g., "ChatGPT", "election", "climate change")
+4. **Configure parameters** (timeframe, minimum score)
+5. **Enable entity analysis** if desired
+6. **Click "Start Analysis"** to begin
+7. **Explore the network visualization** - click topics to expand comment trees
+8. **View recent queries** to reload previous analyses
+
+### API Usage
+
+**Start an analysis:**
+
+```bash
+curl -X POST http://localhost:3001/api/analyze \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "artificial intelligence",
+    "category": "ai",
+    "timeframe": "week",
+    "minPostScore": 100,
+    "includeEntities": true
+  }'
+```
+
+**Get recent analyses:**
+
+```bash
+curl http://localhost:3001/api/recent?limit=5
+```
+
+## Technology Stack
+
+### Backend
+
+- **Runtime**: Bun
+- **Framework**: Hono (lightweight web framework)
+- **Database**: MongoDB with Prisma ORM
+- **Reddit API**: snoowrap
+- **Sentiment Analysis**: vader-sentiment
+- **Entity Recognition**: compromise.js
+- **Language**: TypeScript
+
+### Frontend
+
+- **Framework**: React with TypeScript
+- **Visualization**: D3.js for network graphs
+- **Styling**: Tailwind CSS
+- **Icons**: Lucide React
+- **Date Handling**: date-fns
+- **Build Tool**: Vite
+
+### Database Schema
+
+```prisma
+model RedditAnalysis {
+  id                String   @id @default(auto()) @map("_id") @db.ObjectId
+  createdAt         DateTime @default(now())
+  query             String
+  category          String
+  timeframe         String
+  minScore          Int
+  totalComments     Int
+  totalDiscussions  Int
+  discussions       Json
+  sentimentAnalysis Json?
+  entityAnalysis    Json?
+  EntityChain       EntityChain[]
+}
+
+model EntityChain {
+  id               String @id @default(auto()) @map("_id") @db.ObjectId
+  analysisId       String @db.ObjectId
+  entityText       String
+  entityType       String
+  normalizedText   String
+  totalMentions    Int
+  totalScore       Int
+  averageSentiment Json
+  sentimentTrend   Json[]
+}
+```
+
+## Features in Detail
+
+### Network Visualization
+
+- **Overview Mode**: Shows query → subreddits → topics relationships
+- **Topic Expansion**: Click any topic to see its comment tree
+- **Interactive Elements**: Drag nodes, hover for tooltips, click to navigate
+- **Sentiment Visualization**: Color-coded nodes (green=positive, red=negative, gray=neutral)
+
+### Entity Analysis
+
+- **Smart Filtering**: Removes common words, numbers, and URLs
+- **Confidence Scoring**: Only includes high-confidence entity extractions
+- **Sentiment Context**: Analyzes sentiment specifically about each entity
+- **Subreddit Breakdown**: Shows which entities are discussed in which subreddits
+
+### Caching & Performance
+
+- **24-Hour Cache**: Avoids re-fetching identical queries
+- **Database Storage**: Persistent storage for all analyses
+- **Automatic Cleanup**: Removes old data to manage storage
+- **Optimized Queries**: Efficient database indexing and querying
+
+## Data Output Structure
+
+### Analysis Result
+
+```json
+{
+  "success": true,
+  "cached": false,
+  "data": {
+    "query": "artificial intelligence",
+    "category": "ai",
+    "totalComments": 1250,
+    "totalDiscussions": 45,
+    "discussions": [...],
+    "entities": [...],
+    "entityAnalysis": {...}
+  }
+}
+```
+
+### Entity Data
+
+```json
+{
+  "entity": {
+    "text": "OpenAI",
+    "type": "ORGANIZATION",
+    "normalizedText": "openai"
+  },
+  "totalMentions": 15,
+  "totalScore": 1200,
+  "averageSentiment": {
+    "original": {
+      "compound": 0.6,
+      "pos": 0.7,
+      "neu": 0.2,
+      "neg": 0.1
+    }
+  }
+}
+```
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests if applicable
+5. Submit a pull request
+
+## License
+
+This project is licensed under the MIT License.
+
+## Support
+
+For issues and questions:
+
+1. Check the API health endpoint: http://localhost:3001/health
+2. Review server logs for error messages
+3. Ensure all environment variables are properly set
+4. Verify MongoDB connection and database permissions
