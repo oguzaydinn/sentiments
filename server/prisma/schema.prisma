@@ -1,0 +1,107 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+model RedditAnalysis {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Basic metadata
+  subreddit String
+  query     String
+  category  String
+  timeframe String
+  minScore  Int
+
+  // Analysis metadata
+  totalComments    Int
+  totalDiscussions Int
+  scrapedAt        DateTime
+
+  // Raw discussion data (JSON)
+  discussions Json
+
+  // Sentiment analysis results (JSON)
+  sentimentAnalysis Json?
+
+  // Entity analysis results (JSON) 
+  entityAnalysis Json?
+
+  // Relations
+  EntityChain EntityChain[]
+
+  // Composite index for efficient querying
+  @@index([subreddit, query, createdAt])
+  @@index([category, createdAt])
+  @@map("reddit_analyses")
+}
+
+model EntityChain {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  createdAt DateTime @default(now())
+
+  // Link to the analysis this belongs to
+  analysisId String @db.ObjectId
+  analysis   RedditAnalysis @relation(fields: [analysisId], references: [id], onDelete: Cascade)
+
+  // Entity information
+  entityText       String
+  entityType       String // PERSON, ORGANIZATION, LOCATION
+  normalizedText   String
+  
+  // Chain metrics
+  totalMentions    Int
+  uniquePosts      Int
+  totalScore       Int
+
+  // Sentiment data (JSON for flexibility)
+  averageSentiment Json
+  sentimentTrend   Json[]
+
+  // Indexes for efficient querying
+  @@index([analysisId, entityType])
+  @@index([entityText, entityType])
+  @@index([totalScore])
+  @@map("entity_chains")
+}
+
+model AnalysisJob {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Job parameters
+  category     String
+  query        String
+  timeframe    String
+  minScore     Int
+  includeNER   Boolean @default(false)
+
+  // Job status
+  status       String // "pending", "running", "completed", "failed"
+  progress     Int    @default(0) // 0-100
+  errorMessage String?
+
+  // Results
+  resultIds String[] @db.ObjectId // References to RedditAnalysis results
+
+  // Processing metrics
+  startedAt   DateTime?
+  completedAt DateTime?
+  
+  @@index([status, createdAt])
+  @@map("analysis_jobs")
+}
