@@ -48,18 +48,34 @@ export default function SentimentOverview({
     { name: "Neutral", value: sentimentData.neutral, color: "#6b7280" },
   ];
 
-  // Calculate average sentiment scores
+  // Calculate score-weighted average sentiment scores
   const avgSentiment = data.discussions.reduce((acc, discussion) => {
     const comments = discussion.comments || [];
-    const sentiments = comments
-      .map((c) => c.sentiment?.original.compound || 0)
-      .filter((s) => s !== 0);
+    const commentsWithSentiment = comments
+      .filter((c) => c.sentiment && c.sentiment.original.compound !== 0)
+      .map((c) => ({
+        sentiment: c.sentiment!.original.compound,
+        score: c.score,
+      }));
 
-    if (sentiments.length > 0) {
-      const avg = sentiments.reduce((sum, s) => sum + s, 0) / sentiments.length;
+    if (commentsWithSentiment.length > 0) {
+      // Calculate score-weighted average
+      const totalScore = commentsWithSentiment.reduce(
+        (sum, c) => sum + c.score,
+        0
+      );
+      const weightedSentiment =
+        totalScore > 0
+          ? commentsWithSentiment.reduce(
+              (sum, c) => sum + c.sentiment * c.score,
+              0
+            ) / totalScore
+          : commentsWithSentiment.reduce((sum, c) => sum + c.sentiment, 0) /
+            commentsWithSentiment.length;
+
       acc.push({
         title: discussion.title.slice(0, 30) + "...",
-        sentiment: avg,
+        sentiment: weightedSentiment,
       });
     }
     return acc;

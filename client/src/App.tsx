@@ -130,7 +130,18 @@ function App() {
                 <div className="flex items-center space-x-2">
                   <MapPin className="h-4 w-4" />
                   <span>
-                    {currentAnalysis.data.subreddits?.length || 0} subreddits
+                    {(() => {
+                      // Extract unique subreddits from discussions if subreddits field is not available
+                      const subreddits = currentAnalysis.data.subreddits || [
+                        ...new Set(
+                          currentAnalysis.data.discussions.map(
+                            (d) => d.subreddit
+                          )
+                        ),
+                      ];
+                      return subreddits.length;
+                    })()}{" "}
+                    subreddits
                   </span>
                 </div>
               </div>

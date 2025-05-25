@@ -65,43 +65,53 @@ export default function NetworkVisualization({
           (sum: number, d: Discussion) => sum + d.commentCount,
           0
         );
-        const weightedSentimentSum = discussions.reduce(
-          (sum: number, d: Discussion) =>
-            sum + (d.weightedSentiment || 0) * d.commentCount,
-          0
-        );
-        const averageSentiment =
-          totalComments > 0 ? weightedSentimentSum / totalComments : 0;
 
-        // Calculate top entities for this subreddit
-        const entityMap = new Map();
-        discussions.forEach((d: Discussion) => {
-          d.entities?.forEach((entity) => {
-            const key = entity.text;
-            if (!entityMap.has(key)) {
-              entityMap.set(key, {
-                entity: entity,
-                mentions: 0,
-                sentimentSum: 0,
-                count: 0,
+        // Calculate top entities for this subreddit using global entity analysis
+        let topEntities: any[] = [];
+        if (data.entityAnalysis?.entityChains) {
+          // Since we don't have per-subreddit entity mapping in the current backend,
+          // we'll extract entities from the comments of discussions in this specific subreddit
+          const subredditDiscussions = discussions; // These are already filtered for this subreddit
+          const subredditEntityMap = new Map();
+
+          // Extract entities mentioned in this subreddit's discussions
+          // For now, we'll use a simplified approach by checking if entity names appear in the discussion titles/comments
+          data.entityAnalysis.entityChains.forEach((chain: any) => {
+            let mentionsInSubreddit = 0;
+            let scoreInSubreddit = 0;
+
+            // Check if this entity is mentioned in any of this subreddit's discussions
+            subredditDiscussions.forEach((discussion: Discussion) => {
+              const discussionText = (
+                discussion.title +
+                " " +
+                discussion.comments.map((c) => c.text).join(" ")
+              ).toLowerCase();
+
+              if (discussionText.includes(chain.entity.text.toLowerCase())) {
+                mentionsInSubreddit++;
+                scoreInSubreddit += discussion.comments.reduce(
+                  (sum, c) => sum + c.score,
+                  0
+                );
+              }
+            });
+
+            if (mentionsInSubreddit > 0) {
+              subredditEntityMap.set(chain.entity.text, {
+                text: chain.entity.text,
+                type: chain.entity.type,
+                mentions: mentionsInSubreddit,
+                totalScore: scoreInSubreddit,
+                sentiment: chain.averageSentiment?.original?.compound || 0,
               });
             }
-            const existing = entityMap.get(key);
-            existing.mentions += 1;
-            existing.sentimentSum += entity.confidence || 0;
-            existing.count += 1;
           });
-        });
 
-        const topEntities = Array.from(entityMap.values())
-          .map((item: any) => ({
-            entity: item.entity,
-            mentions: item.mentions,
-            averageSentiment:
-              item.count > 0 ? item.sentimentSum / item.count : 0,
-          }))
-          .sort((a, b) => b.mentions - a.mentions)
-          .slice(0, 5);
+          topEntities = Array.from(subredditEntityMap.values())
+            .sort((a, b) => b.totalScore - a.totalScore)
+            .slice(0, 5);
+        }
 
         const subredditNode: SubredditNode = {
           id: `subreddit-${subredditName}`,
@@ -109,8 +119,8 @@ export default function NetworkVisualization({
           type: "subreddit",
           discussionCount: discussions.length,
           totalComments,
-          averageSentiment,
-          weightedSentiment: averageSentiment,
+          averageSentiment: 0, // Not used for subreddits
+          weightedSentiment: 0, // Not used for subreddits
           topEntities,
         };
         nodes.push(subredditNode);
@@ -137,7 +147,7 @@ export default function NetworkVisualization({
                   (sum, c) => sum + c.sentiment * c.score,
                   0
                 ) / commentSentiments.reduce((sum, c) => sum + c.score, 0)
-              : 0;
+              : discussion.weightedSentiment || 0;
 
           // Calculate top comments affecting sentiment
           const topComments = discussion.comments
@@ -150,13 +160,23 @@ export default function NetworkVisualization({
             .sort((a, b) => b.sentimentImpact - a.sentimentImpact)
             .slice(0, 5);
 
-          const discussionId =
-            discussion.id ||
-            `discussion-${subredditName}-${index}-${discussion.title
-              .slice(0, 20)
-              .replace(/\s+/g, "")}`;
+          // Use a simpler, more reliable ID system based on the discussion's position in the full array
+          const globalIndex = analysis.data.discussions.findIndex(
+            (d) => d === discussion
+          );
+          const topicId = `topic-${globalIndex}`;
+
+          console.log("🏷️ Creating topic node:", {
+            subredditName,
+            localIndex: index,
+            globalIndex,
+            title: discussion.title,
+            topicId,
+            discussionSubreddit: (discussion as any).subreddit,
+          });
+
           const topicNode: TopicNode = {
-            id: `topic-${discussionId}`,
+            id: topicId,
             label: discussion.title,
             type: "topic",
             subreddit: subredditName,
@@ -188,20 +208,58 @@ export default function NetworkVisualization({
   // Build comment tree for expanded view
   const buildCommentTree = useCallback(
     (discussion: Discussion): NetworkData => {
-      const nodes: CommentNode[] = [];
+      const nodes: (QueryNode | CommentNode)[] = [];
       const links: any[] = [];
+
+      // Create central topic node
+      const topicNode: QueryNode = {
+        id: "topic-center",
+        label: discussion.title,
+        type: "query",
+      };
+      nodes.push(topicNode);
+
+      // Store the discussion data on the topic node for tooltip access
+      (topicNode as any).discussion = discussion;
+      (topicNode as any).commentCount = discussion.commentCount;
+      (topicNode as any).weightedSentiment = discussion.weightedSentiment;
+      (topicNode as any).subreddit = (discussion as any).subreddit;
+
+      // Calculate top comments for the tooltip
+      const topComments = discussion.comments
+        .filter((c) => c.sentiment)
+        .map((c) => ({
+          comment: c,
+          sentimentImpact: Math.abs(c.sentiment!.original.compound) * c.score,
+        }))
+        .sort((a, b) => b.sentimentImpact - a.sentimentImpact)
+        .slice(0, 5);
+      (topicNode as any).topComments = topComments;
 
       const addCommentNodes = (
         comments: RedditComment[],
         parentId?: string,
         depth = 0
       ) => {
+        console.log(
+          `📝 Processing ${comments.length} comments at depth ${depth}, parentId: ${parentId}`
+        );
+
         comments.forEach((comment, index) => {
           const commentId =
             comment.id ||
             `comment-${depth}-${index}-${comment.text
               .slice(0, 10)
               .replace(/\s+/g, "")}`;
+
+          console.log(`💬 Comment ${index} at depth ${depth}:`, {
+            id: commentId,
+            text: comment.text.slice(0, 30),
+            hasReplies: !!(comment.replies && comment.replies.length > 0),
+            repliesCount: comment.replies?.length || 0,
+            parentId,
+          });
+
           const commentNode: CommentNode = {
             id: commentId,
             label: comment.text.slice(0, 50) + "...",
@@ -212,30 +270,55 @@ export default function NetworkVisualization({
           };
           nodes.push(commentNode);
 
+          // Link to parent (either topic center or parent comment)
           if (parentId) {
             links.push({
               source: parentId,
               target: commentId,
               type: "comment-reply",
             });
+          } else {
+            // Top-level comment - link to topic center
+            links.push({
+              source: "topic-center",
+              target: commentId,
+              type: "topic-comment",
+            });
           }
 
+          // Process replies recursively
           if (comment.replies && comment.replies.length > 0) {
+            console.log(
+              `🔄 Processing ${comment.replies.length} replies for comment ${commentId}`
+            );
             addCommentNodes(comment.replies, commentId, depth + 1);
           }
         });
       };
 
+      // Add all comments starting from top level
       addCommentNodes(discussion.comments);
+
+      console.log("🌳 Comment tree built:", {
+        totalNodes: nodes.length,
+        totalLinks: links.length,
+        topLevelComments: discussion.comments.length,
+        sampleComment: discussion.comments[0]
+          ? {
+              text: discussion.comments[0].text.slice(0, 50),
+              hasReplies: !!(
+                discussion.comments[0].replies &&
+                discussion.comments[0].replies.length > 0
+              ),
+              repliesCount: discussion.comments[0].replies?.length || 0,
+            }
+          : null,
+      });
 
       return {
         nodes: nodes as any,
         links,
-        centerNode: {
-          id: "topic",
-          label: discussion.title,
-          type: "query",
-        } as QueryNode,
+        centerNode: topicNode,
       };
     },
     []
@@ -244,12 +327,20 @@ export default function NetworkVisualization({
   // Handle node interactions
   const handleNodeClick = useCallback(
     (nodeId: string, nodeType: string) => {
+      console.log("🖱️ Node clicked:", {
+        nodeId,
+        nodeType,
+        currentMode: viewState.mode,
+      });
+
       if (nodeType === "topic") {
+        console.log("📋 Switching to topic-expanded mode for:", nodeId);
         setViewState({
           mode: "topic-expanded",
           selectedTopicId: nodeId,
         });
       } else if (viewState.mode === "topic-expanded") {
+        console.log("🔙 Returning to overview mode");
         setViewState({ mode: "overview" });
       }
     },
@@ -263,22 +354,60 @@ export default function NetworkVisualization({
     }
 
     // Only show tooltips for subreddit, topic, and comment nodes
-    // Skip query nodes as they don't need tooltips
-    if (nodeData.type === "query") {
+    // Skip query nodes as they don't need tooltips (except for central topic in expanded view)
+    if (nodeData.type === "query" && nodeData.id !== "topic-center") {
       setTooltip(null);
       return;
+    }
+
+    // Get the SVG container's bounding rectangle for proper positioning
+    const svgElement = svgRef.current;
+    if (!svgElement) {
+      setTooltip(null);
+      return;
+    }
+
+    const svgRect = svgElement.getBoundingClientRect();
+
+    // Calculate initial tooltip position
+    let tooltipX = svgRect.left + (event.offsetX || event.layerX || 0) + 10;
+    let tooltipY = svgRect.top + (event.offsetY || event.layerY || 0) - 10;
+
+    // Estimate tooltip dimensions (approximate)
+    const tooltipWidth = 400; // max-w-md is roughly 400px
+    const tooltipHeight = 200; // estimated height for typical tooltip
+
+    // Check if tooltip would go off the right edge of the screen
+    if (tooltipX + tooltipWidth > window.innerWidth) {
+      tooltipX =
+        svgRect.left + (event.offsetX || event.layerX || 0) - tooltipWidth - 10;
+    }
+
+    // Check if tooltip would go off the top edge of the screen
+    if (tooltipY - tooltipHeight < 0) {
+      tooltipY = svgRect.top + (event.offsetY || event.layerY || 0) + 10;
+    }
+
+    // Check if tooltip would go off the bottom edge of the screen
+    if (tooltipY > window.innerHeight - tooltipHeight) {
+      tooltipY = window.innerHeight - tooltipHeight - 10;
+    }
+
+    // Check if tooltip would go off the left edge of the screen
+    if (tooltipX < 0) {
+      tooltipX = 10;
     }
 
     const tooltipData: TooltipData = {
       type:
         nodeData.type === "subreddit"
           ? "subreddit"
-          : nodeData.type === "topic"
+          : nodeData.type === "topic" || nodeData.id === "topic-center"
           ? "topic"
           : "comment",
       data: nodeData,
-      x: event.pageX,
-      y: event.pageY,
+      x: tooltipX,
+      y: tooltipY,
     };
     setTooltip(tooltipData);
   }, []);
@@ -293,17 +422,64 @@ export default function NetworkVisualization({
     if (viewState.mode === "overview") {
       currentNetworkData = buildNetworkData(analysis.data);
     } else if (viewState.selectedTopicId) {
+      console.log(
+        "🔍 Looking for discussion with topic ID:",
+        viewState.selectedTopicId
+      );
+      console.log(
+        "📋 Available discussions:",
+        analysis.data.discussions.map((d, index) => {
+          const topicId = `topic-${index}`;
+          return {
+            index,
+            title: d.title,
+            topicId,
+            subreddit: (d as any).subreddit,
+          };
+        })
+      );
+
       const selectedDiscussion = analysis.data.discussions.find((d, index) => {
-        const discussionId =
-          d.id ||
-          `discussion-${d.subreddit}-${index}-${d.title
-            .slice(0, 20)
-            .replace(/\s+/g, "")}`;
-        return `topic-${discussionId}` === viewState.selectedTopicId;
+        const topicId = `topic-${index}`;
+        return topicId === viewState.selectedTopicId;
       });
+
+      console.log("✅ Found discussion:", selectedDiscussion?.title);
+
       if (selectedDiscussion) {
+        console.log("🌳 Building comment tree for:", selectedDiscussion.title);
+        console.log("💬 Comments count:", selectedDiscussion.comments.length);
+        console.log(
+          "📋 Sample comment structure:",
+          selectedDiscussion.comments[0]
+            ? {
+                id: selectedDiscussion.comments[0].id,
+                text: selectedDiscussion.comments[0].text?.slice(0, 50),
+                score: selectedDiscussion.comments[0].score,
+                hasReplies: !!(
+                  selectedDiscussion.comments[0].replies &&
+                  selectedDiscussion.comments[0].replies.length > 0
+                ),
+                repliesCount:
+                  selectedDiscussion.comments[0].replies?.length || 0,
+                firstReply: selectedDiscussion.comments[0].replies?.[0]
+                  ? {
+                      text: selectedDiscussion.comments[0].replies[0].text?.slice(
+                        0,
+                        30
+                      ),
+                      score: selectedDiscussion.comments[0].replies[0].score,
+                    }
+                  : null,
+              }
+            : "No comments"
+        );
         currentNetworkData = buildCommentTree(selectedDiscussion);
       } else {
+        console.log(
+          "❌ No discussion found for topic ID:",
+          viewState.selectedTopicId
+        );
         return;
       }
     } else {
@@ -344,10 +520,17 @@ export default function NetworkVisualization({
           .distance((d) => {
             if (d.type === "query-subreddit") return 150;
             if (d.type === "subreddit-topic") return 100;
+            if (d.type === "topic-comment") return 120; // Distance from topic to top-level comments
+            if (d.type === "comment-reply") return 80; // Distance between comment replies
             return 80;
           })
       )
-      .force("charge", d3.forceManyBody().strength(-300))
+      .force(
+        "charge",
+        d3
+          .forceManyBody()
+          .strength(viewState.mode === "topic-expanded" ? -200 : -300)
+      )
       .force("center", d3.forceCenter(centerX, centerY))
       .force("collision", d3.forceCollide().radius(30));
 
@@ -535,42 +718,55 @@ export default function NetworkVisualization({
       </div>
 
       {/* Network Visualization */}
-      <div className="border border-gray-200 rounded-lg overflow-hidden bg-white">
-        <svg ref={svgRef} className="w-full"></svg>
+      <div className="border border-gray-200 rounded-lg overflow-auto bg-white max-h-[800px]">
+        <svg ref={svgRef} className="w-full min-w-[1200px]"></svg>
       </div>
 
       {/* Tooltip */}
       {tooltip && (
         <div
-          className="fixed z-50 bg-gray-900 text-white text-sm px-3 py-2 rounded-lg shadow-lg pointer-events-none max-w-sm"
+          className="fixed z-50 bg-gray-900 text-white text-sm px-3 py-2 rounded-lg shadow-lg pointer-events-none max-w-md"
           style={{
-            left: tooltip.x + 10,
-            top: tooltip.y - 10,
-            transform: "translateY(-100%)",
+            left: tooltip.x,
+            top: tooltip.y,
           }}
         >
           {tooltip.type === "subreddit" && (
             <div>
               <div className="font-semibold mb-1">r/{tooltip.data.label}</div>
               <div className="text-xs space-y-1">
-                <div>{tooltip.data.discussionCount} discussions</div>
-                <div>{tooltip.data.totalComments} total comments</div>
-                <div
-                  className={getSentimentColor(tooltip.data.weightedSentiment)}
-                >
-                  Sentiment: {tooltip.data.weightedSentiment.toFixed(3)}
+                <div className="flex items-center space-x-1">
+                  <MessageSquare className="h-3 w-3" />
+                  <span>{tooltip.data.discussionCount} discussions</span>
+                </div>
+                <div className="flex items-center space-x-1">
+                  <Users className="h-3 w-3" />
+                  <span>{tooltip.data.totalComments} total comments</span>
                 </div>
                 {tooltip.data.topEntities.length > 0 && (
                   <div>
                     <div className="font-medium mt-2 mb-1">Top Entities:</div>
-                    {tooltip.data.topEntities
-                      .slice(0, 3)
-                      .map((entity: any, i: number) => (
-                        <div key={i} className="flex justify-between">
-                          <span>{entity.entity.text}</span>
-                          <span>{entity.mentions}</span>
+                    {tooltip.data.topEntities.map((entity: any, i: number) => (
+                      <div key={i} className="mb-1">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-1">
+                            <span className="text-xs px-1 py-0.5 rounded bg-gray-700 text-gray-200">
+                              {entity.type.charAt(0)}
+                            </span>
+                            <span className="font-medium">{entity.text}</span>
+                          </div>
+                          <div className="flex items-center space-x-1 text-xs">
+                            <span>{entity.mentions}×</span>
+                            <span
+                              className={getSentimentColor(entity.sentiment)}
+                            >
+                              {entity.sentiment > 0 ? "+" : ""}
+                              {entity.sentiment.toFixed(2)}
+                            </span>
+                          </div>
                         </div>
-                      ))}
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>
@@ -579,48 +775,53 @@ export default function NetworkVisualization({
 
           {tooltip.type === "topic" && (
             <div>
-              <div className="font-semibold mb-1">
-                {tooltip.data.label.slice(0, 50)}...
-              </div>
+              <div className="font-semibold mb-1">{tooltip.data.label}</div>
               <div className="text-xs space-y-1">
                 <div className="flex items-center space-x-1">
                   <MessageSquare className="h-3 w-3" />
                   <span>{tooltip.data.commentCount} comments</span>
                 </div>
-                <div
-                  className={getSentimentColor(tooltip.data.weightedSentiment)}
-                >
-                  Sentiment: {tooltip.data.weightedSentiment.toFixed(3)}
-                </div>
-                {tooltip.data.topComments.length > 0 && (
-                  <div>
-                    <div className="font-medium mt-2 mb-1">Top Comments:</div>
-                    {tooltip.data.topComments
-                      .slice(0, 3)
-                      .map((item: any, i: number) => (
-                        <div key={i} className="mb-1">
-                          <div className="flex items-center space-x-1">
-                            <ThumbsUp className="h-3 w-3" />
-                            <span>{item.comment.score}</span>
-                            <span
-                              className={getSentimentColor(
-                                item.comment.sentiment?.original.compound || 0
-                              )}
-                            >
-                              (
-                              {item.comment.sentiment?.original.compound.toFixed(
-                                2
-                              )}
-                              )
-                            </span>
-                          </div>
-                          <div className="text-xs opacity-75">
-                            {item.comment.text.slice(0, 60)}...
-                          </div>
-                        </div>
-                      ))}
+                {tooltip.data.weightedSentiment !== undefined && (
+                  <div
+                    className={getSentimentColor(
+                      tooltip.data.weightedSentiment
+                    )}
+                  >
+                    Sentiment: {tooltip.data.weightedSentiment.toFixed(3)}
                   </div>
                 )}
+                {tooltip.data.topComments &&
+                  tooltip.data.topComments.length > 0 && (
+                    <div>
+                      <div className="font-medium mt-2 mb-1">Top Comments:</div>
+                      {tooltip.data.topComments
+                        .slice(0, 3)
+                        .map((item: any, i: number) => (
+                          <div key={i} className="mb-1">
+                            <div className="flex items-center space-x-1">
+                              <ThumbsUp className="h-3 w-3" />
+                              <span>{item.comment.score}</span>
+                              <span
+                                className={getSentimentColor(
+                                  item.comment.sentiment?.original.compound || 0
+                                )}
+                              >
+                                (
+                                {item.comment.sentiment?.original.compound.toFixed(
+                                  2
+                                )}
+                                )
+                              </span>
+                            </div>
+                            <div className="text-xs opacity-75 mt-1">
+                              {item.comment.text.length > 300
+                                ? item.comment.text.slice(0, 300) + "..."
+                                : item.comment.text}
+                            </div>
+                          </div>
+                        ))}
+                    </div>
+                  )}
               </div>
             </div>
           )}
@@ -645,8 +846,9 @@ export default function NetworkVisualization({
                       Sentiment: {tooltip.data.sentimentScore.toFixed(3)}
                     </div>
                     <div className="mt-2 p-2 bg-gray-800 rounded text-xs">
-                      {tooltip.data.comment.text.slice(0, 200)}
-                      {tooltip.data.comment.text.length > 200 && "..."}
+                      {tooltip.data.comment.text.length > 300
+                        ? tooltip.data.comment.text.slice(0, 300) + "..."
+                        : tooltip.data.comment.text}
                     </div>
                   </div>
                 </div>

@@ -1,9 +1,17 @@
 export interface SentimentAnalysis {
-  positivity: number;
-  negativity: number;
-  neutrality: number;
-  compound: number;
-  overall: "positive" | "negative" | "neutral";
+  original: {
+    neg: number;
+    neu: number;
+    pos: number;
+    compound: number;
+  };
+  overall: {
+    neg: number;
+    neu: number;
+    pos: number;
+    compound: number;
+  };
+  label: "positive" | "negative" | "neutral";
 }
 
 export interface Entity {
@@ -37,21 +45,7 @@ export interface RedditComment {
   author?: string;
   timestamp?: string;
   replies: RedditComment[];
-  sentiment?: {
-    original: {
-      neg: number;
-      neu: number;
-      pos: number;
-      compound: number;
-    };
-    overall: {
-      neg: number;
-      neu: number;
-      pos: number;
-      compound: number;
-    };
-    label: "positive" | "negative" | "neutral";
-  };
+  sentiment?: SentimentAnalysis;
   entities?: Entity[];
   depth?: number;
 }
@@ -64,21 +58,7 @@ export interface Discussion {
   subreddit: string;
   score: number;
   comments: RedditComment[];
-  sentiment?: {
-    original: {
-      neg: number;
-      neu: number;
-      pos: number;
-      compound: number;
-    };
-    overall: {
-      neg: number;
-      neu: number;
-      pos: number;
-      compound: number;
-    };
-    label: "positive" | "negative" | "neutral";
-  };
+  sentiment?: SentimentAnalysis;
   entities?: Entity[];
   commentCount: number;
   weightedSentiment?: number | null; // Score-weighted average sentiment, can be null
@@ -99,8 +79,8 @@ export interface SubredditNode {
   type: "subreddit";
   discussionCount: number;
   totalComments: number;
-  averageSentiment: number;
-  weightedSentiment: number;
+  averageSentiment: number; // Not meaningful for subreddits - sentiment is topic-specific
+  weightedSentiment: number; // Not meaningful for subreddits - sentiment is topic-specific
   topEntities: Array<{
     entity: Entity;
     mentions: number;
@@ -166,8 +146,8 @@ export interface AnalysisData {
   scrapedAt: string;
   createdAt: string;
   discussions: Discussion[];
-  subreddits: string[];
-  networkData: NetworkData;
+  subreddits?: string[]; // Make optional since it's not in the response format
+  networkData?: NetworkData; // Make optional since it's not in the response format
   entityAnalysis?: {
     query: string;
     timestamp: string;
