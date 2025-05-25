@@ -1,0 +1,77 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --color-primary-50: #eff6ff;
+    --color-primary-500: #3b82f6;
+    --color-primary-600: #2563eb;
+    --color-primary-700: #1d4ed8;
+    --color-sentiment-positive: #10b981;
+    --color-sentiment-negative: #ef4444;
+    --color-sentiment-neutral: #6b7280;
+  }
+
+  html {
+    font-family: "Inter", system-ui, sans-serif;
+  }
+
+  body {
+    @apply bg-gray-50 text-gray-900;
+  }
+}
+
+@layer components {
+  .card {
+    @apply bg-white rounded-lg shadow-sm border border-gray-200 p-6;
+  }
+
+  .btn-primary {
+    @apply bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200;
+  }
+
+  .btn-secondary {
+    @apply bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-2 px-4 rounded-lg transition-colors duration-200;
+  }
+
+  .input-field {
+    @apply w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all duration-200;
+  }
+
+  .sentiment-positive {
+    @apply text-green-600 bg-green-50 border-green-200;
+  }
+
+  .sentiment-negative {
+    @apply text-red-600 bg-red-50 border-red-200;
+  }
+
+  .sentiment-neutral {
+    @apply text-gray-600 bg-gray-50 border-gray-200;
+  }
+}
+
+/* D3.js specific styles */
+.d3-tooltip {
+  @apply absolute bg-gray-900 text-white text-sm px-3 py-2 rounded-lg shadow-lg pointer-events-none z-50;
+}
+
+.d3-node {
+  @apply cursor-pointer transition-all duration-200;
+}
+
+.d3-node:hover {
+  @apply opacity-80;
+}
+
+.d3-link {
+  @apply stroke-gray-300 fill-none;
+}
+
+/* Loading animations */
+.loading-spinner {
+  @apply animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600;
+}
+
+.loading-pulse {
+  @apply animate-pulse bg-gray-200 rounded;
+}
