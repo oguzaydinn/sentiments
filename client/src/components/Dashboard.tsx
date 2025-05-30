@@ -1,11 +1,10 @@
 import { useState } from "react";
 import {
-  BarChart3,
   Users,
-  MapPin,
-  TrendingUp,
-  Calendar,
   MessageSquare,
+  TrendingUp,
+  Clock,
+  BarChart3,
 } from "lucide-react";
 import type { AnalysisResult } from "../types/analysis";
 import SentimentOverview from "./visualizations/SentimentOverview";
@@ -65,7 +64,7 @@ export default function Dashboard({ analysis }: DashboardProps) {
             </h2>
             <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600">
               <div className="flex items-center space-x-1">
-                <Calendar className="h-4 w-4" />
+                <Clock className="h-4 w-4" />
                 <span>Analyzed {format(new Date(data.scrapedAt), "PPp")}</span>
               </div>
               <div className="flex items-center space-x-1">

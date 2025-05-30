@@ -203,3 +203,14 @@ export interface TooltipData {
   x: number;
   y: number;
 }
+
+// Entity visualization specific types
+export interface EntityNode {
+  id: string;
+  label: string;
+  type: "PERSON" | "ORGANIZATION" | "LOCATION";
+  mentions: number;
+  sentimentScore: number;
+  x?: number;
+  y?: number;
+}

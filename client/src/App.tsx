@@ -11,23 +11,29 @@ import {
 import AnalysisForm from "./components/AnalysisForm";
 import NetworkVisualization from "./components/NetworkVisualization";
 import RecentQueries from "./components/RecentQueries";
+import Dashboard from "./components/Dashboard";
 import { testAPI, healthCheck } from "./services/api";
 import type { AnalysisResult } from "./types/analysis";
+
+// Get API base URL from environment or default to relative path
+const API_BASE_URL =
+  import.meta.env.VITE_API_URL === ""
+    ? "" // Use relative paths when explicitly set to empty string
+    : import.meta.env.VITE_API_URL || "http://localhost:3001";
 
 function App() {
   const [currentAnalysis, setCurrentAnalysis] = useState<AnalysisResult | null>(
     null
   );
   const [isLoading, setIsLoading] = useState(false);
-  const [apiStatus, setApiStatus] = useState<{
-    connected: boolean;
-    message: string;
-    loading: boolean;
-  }>({
+  const [apiStatus, setApiStatus] = useState({
     connected: false,
-    message: "Checking connection...",
     loading: true,
+    message: "Checking connection...",
   });
+  const [activeMainTab, setActiveMainTab] = useState<"network" | "dashboard">(
+    "network"
+  );
 
   // Test API connection on component mount
   useEffect(() => {
@@ -82,30 +88,28 @@ function App() {
     query: string,
     category: string
   ) => {
-    console.log(
-      `🎯 Loading cached query: "${query}" (${category}) with ID: ${id}`
-    );
-
+    setIsLoading(true);
     try {
-      setIsLoading(true);
-      setCurrentAnalysis(null);
-
-      const response = await fetch(`http://localhost:3001/api/analysis/${id}`);
+      const response = await fetch(`${API_BASE_URL}/api/analysis/${id}`);
       const result = await response.json();
 
       if (result.success) {
-        console.log("✅ Cached analysis loaded successfully");
         setCurrentAnalysis(result);
       } else {
-        console.error("❌ Failed to load cached analysis:", result.error);
-        // Could show an error message to user here
+        console.error("Failed to load cached query:", result.error);
       }
     } catch (error) {
-      console.error("❌ Error loading cached analysis:", error);
-      // Could show an error message to user here
+      console.error("Error loading cached query:", error);
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // Handle clicking on logo/title to return to home page
+  const handleGoHome = () => {
+    setCurrentAnalysis(null);
+    setIsLoading(false);
+    setActiveMainTab("network");
   };
 
   return (
@@ -114,12 +118,15 @@ function App() {
       <header className="bg-white shadow-sm border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-6">
-            <div className="flex items-center space-x-3">
-              <div className="bg-blue-600 p-2 rounded-lg">
+            <button
+              onClick={handleGoHome}
+              className="flex items-center space-x-3 hover:opacity-80 transition-opacity duration-200 cursor-pointer group"
+            >
+              <div className="bg-blue-600 p-2 rounded-lg group-hover:bg-blue-700 transition-colors duration-200">
                 <BarChart3 className="h-6 w-6 text-white" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">
+                <h1 className="text-2xl font-bold text-gray-900 group-hover:text-blue-600 transition-colors duration-200">
                   Reddit Sentiment Network
                 </h1>
                 <p className="text-sm text-gray-600">
@@ -127,7 +134,7 @@ function App() {
                   sentiment
                 </p>
               </div>
-            </div>
+            </button>
 
             {/* API Status Indicator */}
             <div className="flex items-center space-x-2">
@@ -193,7 +200,7 @@ function App() {
               <div className="ml-3">
                 <p className="text-sm text-red-700">{apiStatus.message}</p>
                 <p className="text-xs text-red-600 mt-1">
-                  Make sure the backend server is running on port 3001
+                  Make sure the backend server is running and accessible
                 </p>
               </div>
             </div>
@@ -257,7 +264,7 @@ function App() {
           </div>
         )}
 
-        {/* Network Visualization */}
+        {/* Analysis Results with Tabs */}
         {currentAnalysis && !isLoading && (
           <div className="space-y-6">
             {/* Analysis Summary */}
@@ -265,7 +272,7 @@ function App() {
               <div className="flex flex-col md:flex-row md:items-center md:justify-between">
                 <div>
                   <h2 className="text-xl font-bold text-gray-900 mb-2">
-                    Network Analysis: "{currentAnalysis.data.query}"
+                    Analysis Results: "{currentAnalysis.data.query}"
                   </h2>
                   <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600">
                     <span>
@@ -294,8 +301,81 @@ function App() {
               </div>
             </div>
 
-            {/* Network Visualization */}
-            <NetworkVisualization analysis={currentAnalysis} />
+            {/* Main Tab Navigation */}
+            <div className="border-b border-gray-200">
+              <nav className="-mb-px flex space-x-8">
+                <button
+                  onClick={() => setActiveMainTab("network")}
+                  className={`
+                    group inline-flex items-center py-4 px-1 border-b-2 font-medium text-sm
+                    ${
+                      activeMainTab === "network"
+                        ? "border-primary-500 text-primary-600"
+                        : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                    }
+                  `}
+                >
+                  <svg
+                    className={`-ml-0.5 mr-2 h-5 w-5 ${
+                      activeMainTab === "network"
+                        ? "text-primary-500"
+                        : "text-gray-400 group-hover:text-gray-500"
+                    }`}
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
+                    />
+                  </svg>
+                  <span>Network View</span>
+                </button>
+                <button
+                  onClick={() => setActiveMainTab("dashboard")}
+                  className={`
+                    group inline-flex items-center py-4 px-1 border-b-2 font-medium text-sm
+                    ${
+                      activeMainTab === "dashboard"
+                        ? "border-primary-500 text-primary-600"
+                        : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                    }
+                  `}
+                >
+                  <svg
+                    className={`-ml-0.5 mr-2 h-5 w-5 ${
+                      activeMainTab === "dashboard"
+                        ? "text-primary-500"
+                        : "text-gray-400 group-hover:text-gray-500"
+                    }`}
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+                    />
+                  </svg>
+                  <span>Dashboard & Charts</span>
+                </button>
+              </nav>
+            </div>
+
+            {/* Tab Content */}
+            <div className="animate-fade-in">
+              {activeMainTab === "network" && (
+                <NetworkVisualization analysis={currentAnalysis} />
+              )}
+              {activeMainTab === "dashboard" && (
+                <Dashboard analysis={currentAnalysis} />
+              )}
+            </div>
           </div>
         )}
       </main>

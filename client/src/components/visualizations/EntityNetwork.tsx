@@ -20,7 +20,6 @@ export default function EntityNetwork({ analysis }: EntityNetworkProps) {
 
     const width = 800;
     const height = 500;
-    const margin = { top: 20, right: 20, bottom: 20, left: 20 };
 
     // Transform entity chains to nodes
     const nodes: EntityNode[] = data.entities.map((chain) => ({
@@ -28,9 +27,7 @@ export default function EntityNetwork({ analysis }: EntityNetworkProps) {
       label: chain.entity.text,
       type: chain.entity.type,
       mentions: chain.totalMentions,
-      totalScore: chain.totalScore,
-      sentiment: chain.averageSentiment.overall,
-      sentimentScore: chain.averageSentiment.compound,
+      sentimentScore: chain.averageSentiment.overall.compound,
     }));
 
     // Create links based on co-occurrence (simplified)
@@ -117,26 +114,11 @@ export default function EntityNetwork({ analysis }: EntityNetworkProps) {
       .attr("r", (d: EntityNode) => Math.sqrt(d.mentions) * 3 + 8)
       .attr("fill", (d: EntityNode) => {
         const colors = {
-          PERSON:
-            d.sentiment === "positive"
-              ? "#10b981"
-              : d.sentiment === "negative"
-              ? "#ef4444"
-              : "#6b7280",
-          ORGANIZATION:
-            d.sentiment === "positive"
-              ? "#059669"
-              : d.sentiment === "negative"
-              ? "#dc2626"
-              : "#4b5563",
-          LOCATION:
-            d.sentiment === "positive"
-              ? "#047857"
-              : d.sentiment === "negative"
-              ? "#b91c1c"
-              : "#374151",
+          PERSON: "#3b82f6",
+          ORGANIZATION: "#10b981",
+          LOCATION: "#8b5cf6",
         };
-        return colors[d.type];
+        return colors[d.type] || "#6b7280";
       })
       .attr("stroke", "#fff")
       .attr("stroke-width", 2);
@@ -167,10 +149,9 @@ export default function EntityNetwork({ analysis }: EntityNetworkProps) {
           <div class="font-semibold">${d.label}</div>
           <div class="text-xs">Type: ${d.type}</div>
           <div class="text-xs">Mentions: ${d.mentions}</div>
-          <div class="text-xs">Total Score: ${d.totalScore}</div>
-          <div class="text-xs">Sentiment: ${
-            d.sentiment
-          } (${d.sentimentScore.toFixed(2)})</div>
+          <div class="text-xs">Sentiment Score: ${d.sentimentScore.toFixed(
+            2
+          )}</div>
         `
           )
           .style("left", event.pageX + 10 + "px")
@@ -179,7 +160,7 @@ export default function EntityNetwork({ analysis }: EntityNetworkProps) {
       .on("mouseout", function () {
         tooltip.transition().duration(500).style("opacity", 0);
       })
-      .on("click", function (event, d: EntityNode) {
+      .on("click", function (_, d: EntityNode) {
         setSelectedEntity(d);
       });
 
@@ -297,23 +278,17 @@ export default function EntityNetwork({ analysis }: EntityNetworkProps) {
                   <span className="font-medium">{selectedEntity.mentions}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-600">Total Score:</span>
-                  <span className="font-medium">
-                    {selectedEntity.totalScore}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Sentiment:</span>
+                  <span className="text-gray-600">Sentiment Score:</span>
                   <span
                     className={`font-medium ${
-                      selectedEntity.sentiment === "positive"
+                      selectedEntity.sentimentScore > 0
                         ? "text-green-600"
-                        : selectedEntity.sentiment === "negative"
+                        : selectedEntity.sentimentScore < 0
                         ? "text-red-600"
                         : "text-gray-600"
                     }`}
                   >
-                    {selectedEntity.sentiment}
+                    {selectedEntity.sentimentScore.toFixed(2)}
                   </span>
                 </div>
               </div>
@@ -343,9 +318,7 @@ export default function EntityNetwork({ analysis }: EntityNetworkProps) {
                         label: chain.entity.text,
                         type: chain.entity.type,
                         mentions: chain.totalMentions,
-                        totalScore: chain.totalScore,
-                        sentiment: chain.averageSentiment.overall,
-                        sentimentScore: chain.averageSentiment.compound,
+                        sentimentScore: chain.averageSentiment.overall.compound,
                       })
                     }
                   >

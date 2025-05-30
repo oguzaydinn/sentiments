@@ -39,6 +39,7 @@ export interface Discussion {
   url: string;
   content?: string; // Post content (if available)
   timestamp: string;
+  score: number; // Reddit post score (upvotes)
   comments: RedditComment[];
   processedComments?: ProcessedComment[];
   sentiment?: SentimentAnalysis;

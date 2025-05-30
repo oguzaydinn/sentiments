@@ -8,7 +8,11 @@
  * - Sarcasm detection: Basic detection of sarcastic patterns
  */
 
-import type { RedditData, Comment, ProcessedComment } from "./types/reddit";
+import type {
+  RedditData,
+  RedditComment,
+  ProcessedComment,
+} from "./types/reddit";
 
 const STOPWORDS = new Set([
   "a",
@@ -165,10 +169,9 @@ const SARCASM_INDICATORS = [
 ];
 
 export function tokenize(text: string): string[] {
-  // Remove URLs but keep the text
   const withoutUrls = text.replace(/https?:\/\/\S+/g, "");
 
-  // Keep punctuation and capitalization for VADER
+  // Keep punctuation and capitalization for VADER sentiment analysis
   return withoutUrls
     .replace(/\s+/g, " ")
     .trim()
@@ -200,6 +203,7 @@ export function detectSarcasm(text: string): {
     }
   });
 
+  // Check for excessive punctuation patterns
   if (/(!{2,}|\?{2,})/g.test(text)) {
     sarcasmScore += 0.5;
   }
@@ -208,6 +212,7 @@ export function detectSarcasm(text: string): {
     sarcasmScore += 0.5;
   }
 
+  // Check for repetitive affirmative words (often sarcastic)
   if (/\b(yeah|sure|right)[\s,]+(yeah|sure|right)\b/i.test(text)) {
     sarcasmScore += 1;
   }
@@ -226,8 +231,15 @@ export function preprocessText(
   if (!text || text.trim() === "") {
     return {
       text: text || "",
+      original: text || "",
       processed: "",
+      tokens: [],
+      tokensWithoutStopwords: [],
       normalizedTokens: [],
+      sarcasm: {
+        isSarcastic: false,
+        confidence: 0,
+      },
     };
   }
 
@@ -235,25 +247,29 @@ export function preprocessText(
   const tokensWithoutStopwords = removeStopwords(tokens);
   const normalizedTokens = normalizeSlang(tokensWithoutStopwords);
   const processed = normalizedTokens.join(" ");
+  const sarcasm = detectSarcasm(text);
 
   return {
     text,
+    original: text,
     processed,
+    tokens,
+    tokensWithoutStopwords,
     normalizedTokens,
+    sarcasm,
   };
 }
 
 export function preprocessRedditData(data: RedditData): RedditData {
   data.discussions = data.discussions.map((discussion) => ({
-    title: discussion.title,
-    url: discussion.url,
+    ...discussion,
     comments: discussion.comments.map((comment) => ({
+      ...comment,
       ...preprocessText(comment.text),
-      score: comment.score,
       replies:
         comment.replies?.map((reply) => ({
+          ...reply,
           ...preprocessText(reply.text),
-          score: reply.score,
           replies: reply.replies || [],
         })) || [],
     })),

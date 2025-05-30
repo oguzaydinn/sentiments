@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import * as d3 from "d3";
-import { MessageSquare, Users, ThumbsUp, Eye } from "lucide-react";
+import { MessageSquare, Users, ThumbsUp, Plus, Minus } from "lucide-react";
 import type {
   AnalysisResult,
   NetworkData,
@@ -28,9 +28,14 @@ export default function NetworkVisualization({
   console.log("📋 Total discussions:", analysis.data.totalDiscussions);
 
   const svgRef = useRef<SVGSVGElement>(null);
-  const [viewState, setViewState] = useState<ViewState>({ mode: "overview" });
+  const containerRef = useRef<HTMLDivElement>(null);
+  const zoomRef = useRef<d3.ZoomBehavior<SVGSVGElement, unknown> | null>(null);
   const [tooltip, setTooltip] = useState<TooltipData | null>(null);
-  const [networkData, setNetworkData] = useState<NetworkData | null>(null);
+  const [zoomLevel, setZoomLevel] = useState(1);
+  const [isCtrlPressed, setIsCtrlPressed] = useState(false);
+  const [viewState, setViewState] = useState<ViewState>({
+    mode: "overview",
+  });
 
   // Transform analysis data into network structure
   const buildNetworkData = useCallback((data: any): NetworkData => {
@@ -415,10 +420,41 @@ export default function NetworkVisualization({
     setTooltip(tooltipData);
   }, []);
 
+  // Function to center the scroll position on the center node
+  const scrollToCenter = useCallback(() => {
+    if (containerRef.current) {
+      const container = containerRef.current;
+      const containerWidth = container.clientWidth;
+      const containerHeight = container.clientHeight;
+
+      // SVG dimensions
+      const svgWidth = 2000;
+      const svgHeight = 1600;
+
+      // Calculate center position
+      const centerX = svgWidth / 2;
+      const centerY = svgHeight / 2;
+
+      // Calculate scroll position to center the center node in viewport
+      const scrollLeft = centerX - containerWidth / 2;
+      const scrollTop = centerY - containerHeight / 2;
+
+      // Scroll to center position
+      container.scrollTo({
+        left: Math.max(0, scrollLeft),
+        top: Math.max(0, scrollTop),
+        behavior: "smooth",
+      });
+    }
+  }, []);
+
   // D3 visualization effect
   useEffect(() => {
     if (!analysis.data.discussions || analysis.data.discussions.length === 0)
       return;
+
+    // Reset zoom level when view changes
+    setZoomLevel(1);
 
     let currentNetworkData: NetworkData;
 
@@ -442,7 +478,7 @@ export default function NetworkVisualization({
         })
       );
 
-      const selectedDiscussion = analysis.data.discussions.find((d, index) => {
+      const selectedDiscussion = analysis.data.discussions.find((_, index) => {
         const topicId = `topic-${index}`;
         return topicId === viewState.selectedTopicId;
       });
@@ -489,20 +525,11 @@ export default function NetworkVisualization({
       return;
     }
 
-    setNetworkData(currentNetworkData);
-
-    console.log("🌐 Network data created:", currentNetworkData);
-    console.log(
-      "📊 Node types:",
-      currentNetworkData.nodes.map((n) => ({ id: n.id, type: n.type }))
-    );
-    console.log("🔗 Links:", currentNetworkData.links);
-
     const svg = d3.select(svgRef.current);
     svg.selectAll("*").remove();
 
-    const width = 1200;
-    const height = 800;
+    const width = 2000; // Increased from 1200
+    const height = 1600; // Increased from 800
     const centerX = width / 2;
     const centerY = height / 2;
 
@@ -511,6 +538,35 @@ export default function NetworkVisualization({
       .attr("height", height)
       .attr("viewBox", `0 0 ${width} ${height}`)
       .style("background", "#fafafa");
+
+    // Create zoom behavior
+    const zoom = d3
+      .zoom<SVGSVGElement, unknown>()
+      .scaleExtent([0.1, 4])
+      .filter((event) => {
+        // Only allow zoom with Ctrl/Cmd key or when using zoom buttons
+        // Allow pan (drag) without Ctrl/Cmd for repositioning
+        if (event.type === "wheel") {
+          return event.ctrlKey || event.metaKey;
+        }
+        // Allow dragging to pan
+        if (event.type === "mousedown") {
+          return true;
+        }
+        return true;
+      })
+      .on("zoom", (event) => {
+        const { transform } = event;
+        setZoomLevel(transform.k);
+        zoomContainer.attr("transform", transform);
+      });
+
+    // Create a container group for all zoomable content
+    const zoomContainer = svg.append("g").attr("class", "zoom-container");
+
+    // Apply zoom behavior to SVG
+    svg.call(zoom as any);
+    zoomRef.current = zoom;
 
     // Create force simulation
     const simulation = d3
@@ -521,24 +577,24 @@ export default function NetworkVisualization({
           .forceLink(currentNetworkData.links)
           .id((d: any) => d.id)
           .distance((d) => {
-            if (d.type === "query-subreddit") return 150;
-            if (d.type === "subreddit-topic") return 100;
-            if (d.type === "topic-comment") return 120; // Distance from topic to top-level comments
-            if (d.type === "comment-reply") return 80; // Distance between comment replies
-            return 80;
+            if (d.type === "query-subreddit") return 200;
+            if (d.type === "subreddit-topic") return 150;
+            if (d.type === "topic-comment") return 180;
+            if (d.type === "comment-reply") return 120;
+            return 120;
           })
       )
       .force(
         "charge",
         d3
           .forceManyBody()
-          .strength(viewState.mode === "topic-expanded" ? -200 : -300)
+          .strength(viewState.mode === "topic-expanded" ? -400 : -500)
       )
       .force("center", d3.forceCenter(centerX, centerY))
-      .force("collision", d3.forceCollide().radius(30));
+      .force("collision", d3.forceCollide().radius(40));
 
     // Draw links
-    const link = svg
+    const link = zoomContainer
       .append("g")
       .selectAll("line")
       .data(currentNetworkData.links)
@@ -549,7 +605,7 @@ export default function NetworkVisualization({
       .attr("stroke-width", 2);
 
     // Draw nodes
-    const node = svg
+    const node = zoomContainer
       .append("g")
       .selectAll("g")
       .data(currentNetworkData.nodes)
@@ -622,7 +678,7 @@ export default function NetworkVisualization({
       .on("mouseout", function () {
         setTooltip(null);
       })
-      .on("click", function (event, d: any) {
+      .on("click", function (_, d: any) {
         handleNodeClick(d.id, d.type);
       });
 
@@ -654,6 +710,9 @@ export default function NetworkVisualization({
       d.fx = null;
       d.fy = null;
     }
+
+    // Call scrollToCenter after the visualization is complete
+    scrollToCenter();
   }, [
     analysis.data,
     viewState,
@@ -661,13 +720,62 @@ export default function NetworkVisualization({
     buildCommentTree,
     handleNodeClick,
     handleNodeHover,
+    scrollToCenter,
   ]);
+
+  // Track Ctrl/Cmd key state for zoom mode indicator
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.ctrlKey || event.metaKey) {
+        setIsCtrlPressed(true);
+      }
+    };
+
+    const handleKeyUp = (event: KeyboardEvent) => {
+      if (!event.ctrlKey && !event.metaKey) {
+        setIsCtrlPressed(false);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("keyup", handleKeyUp);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("keyup", handleKeyUp);
+    };
+  }, []);
 
   const getSentimentColor = (sentiment: number) => {
     if (sentiment > 0.1) return "text-green-600";
     if (sentiment < -0.1) return "text-red-600";
     return "text-gray-600";
   };
+
+  // Zoom control functions
+  const handleZoomIn = useCallback(() => {
+    if (svgRef.current && zoomRef.current) {
+      const svg = d3.select(svgRef.current);
+      zoomRef.current.scaleBy(svg.transition().duration(300), 1.5);
+    }
+  }, []);
+
+  const handleZoomOut = useCallback(() => {
+    if (svgRef.current && zoomRef.current) {
+      const svg = d3.select(svgRef.current);
+      zoomRef.current.scaleBy(svg.transition().duration(300), 1 / 1.5);
+    }
+  }, []);
+
+  const handleZoomReset = useCallback(() => {
+    if (svgRef.current && zoomRef.current) {
+      const svg = d3.select(svgRef.current);
+      zoomRef.current.transform(
+        svg.transition().duration(500),
+        d3.zoomIdentity
+      );
+    }
+  }, []);
 
   return (
     <div className="relative">
@@ -681,8 +789,8 @@ export default function NetworkVisualization({
           </h3>
           <p className="text-sm text-gray-600">
             {viewState.mode === "overview"
-              ? "Click on topics to expand comments. Hover for details."
-              : "Click anywhere to return to overview."}
+              ? "Click on topics to expand comments. Hover for details. Hold Ctrl/Cmd + scroll to zoom."
+              : "Click anywhere to return to overview. Hold Ctrl/Cmd + scroll to zoom."}
           </p>
         </div>
 
@@ -721,8 +829,50 @@ export default function NetworkVisualization({
       </div>
 
       {/* Network Visualization */}
-      <div className="border border-gray-200 rounded-lg overflow-auto bg-white max-h-[800px]">
-        <svg ref={svgRef} className="w-full min-w-[1200px]"></svg>
+      <div className="border border-gray-200 rounded-lg bg-white h-[800px] relative">
+        {/* Zoom Controls - moved outside scrollable container */}
+        <div className="absolute top-4 right-4 z-10 flex flex-col space-y-2 bg-white/90 backdrop-blur-sm rounded-lg border border-gray-200 p-2 shadow-sm">
+          {isCtrlPressed && (
+            <div className="text-xs text-green-600 font-medium px-2 py-1 bg-green-50 rounded-md border border-green-200">
+              🔍 Zoom Mode
+            </div>
+          )}
+          <button
+            onClick={handleZoomIn}
+            className="p-2 hover:bg-gray-100 rounded-md transition-colors"
+            title="Zoom In"
+          >
+            <Plus className="h-4 w-4" />
+          </button>
+          <button
+            onClick={handleZoomOut}
+            className="p-2 hover:bg-gray-100 rounded-md transition-colors"
+            title="Zoom Out"
+          >
+            <Minus className="h-4 w-4" />
+          </button>
+          <button
+            onClick={handleZoomReset}
+            className="px-2 py-1 text-xs hover:bg-gray-100 rounded-md transition-colors font-mono"
+            title="Reset Zoom"
+          >
+            1:1
+          </button>
+          <div className="text-xs font-mono text-gray-600 px-1 text-center">
+            {(zoomLevel * 100).toFixed(0)}%
+          </div>
+          <div className="text-xs text-gray-500 px-1 text-center border-t border-gray-200 pt-2">
+            Ctrl/Cmd + scroll
+          </div>
+        </div>
+
+        {/* Scrollable container */}
+        <div ref={containerRef} className="overflow-auto h-full">
+          <svg
+            ref={svgRef}
+            className="w-full min-w-[2000px] min-h-[1600px]"
+          ></svg>
+        </div>
       </div>
 
       {/* Tooltip */}

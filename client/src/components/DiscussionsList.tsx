@@ -9,7 +9,11 @@ import {
   User,
 } from "lucide-react";
 import { format, parseISO } from "date-fns";
-import type { Discussion, RedditComment } from "../types/analysis";
+import type {
+  Discussion,
+  RedditComment,
+  SentimentAnalysis,
+} from "../types/analysis";
 
 interface DiscussionsListProps {
   discussions: Discussion[];
@@ -24,21 +28,23 @@ function CommentItem({ comment, depth = 0 }: CommentItemProps) {
   const [isExpanded, setIsExpanded] = useState(depth < 2);
   const hasReplies = comment.replies && comment.replies.length > 0;
 
-  const getSentimentColor = (sentiment?: string) => {
-    switch (sentiment) {
+  const getSentimentColor = (sentiment?: SentimentAnalysis) => {
+    if (!sentiment) return "text-gray-600 bg-gray-50 border-gray-200";
+    switch (sentiment.label) {
       case "positive":
-        return "text-green-600 bg-green-50";
+        return "text-green-600 bg-green-50 border-green-200";
       case "negative":
-        return "text-red-600 bg-red-50";
+        return "text-red-600 bg-red-50 border-red-200";
       case "neutral":
-        return "text-gray-600 bg-gray-50";
+        return "text-gray-600 bg-gray-50 border-gray-200";
       default:
-        return "text-gray-600 bg-gray-50";
+        return "text-gray-600 bg-gray-50 border-gray-200";
     }
   };
 
-  const getSentimentIcon = (sentiment?: string) => {
-    switch (sentiment) {
+  const getSentimentIcon = (sentiment?: SentimentAnalysis) => {
+    if (!sentiment) return "😐";
+    switch (sentiment.label) {
       case "positive":
         return "😊";
       case "negative":
@@ -46,7 +52,7 @@ function CommentItem({ comment, depth = 0 }: CommentItemProps) {
       case "neutral":
         return "😐";
       default:
-        return "❓";
+        return "😐";
     }
   };
 
@@ -58,20 +64,26 @@ function CommentItem({ comment, depth = 0 }: CommentItemProps) {
         {/* Comment Header */}
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center space-x-3">
-            <div className="flex items-center space-x-1">
-              <User className="h-4 w-4 text-gray-400" />
-              <span className="text-sm font-medium text-gray-700">
-                {comment.author}
-              </span>
-            </div>
+            {comment.author && (
+              <div className="flex items-center space-x-1">
+                <User className="h-4 w-4 text-gray-400" />
+                <span className="text-sm text-gray-600 font-medium">
+                  {comment.author}
+                </span>
+              </div>
+            )}
+            {comment.timestamp && (
+              <div className="flex items-center space-x-1">
+                <Clock className="h-4 w-4 text-gray-400" />
+                <span className="text-sm text-gray-600">
+                  {format(parseISO(comment.timestamp), "MMM d, yyyy")}
+                </span>
+              </div>
+            )}
             <div className="flex items-center space-x-1">
               <ThumbsUp className="h-4 w-4 text-gray-400" />
-              <span className="text-sm text-gray-600">{comment.score}</span>
-            </div>
-            <div className="flex items-center space-x-1">
-              <Clock className="h-4 w-4 text-gray-400" />
               <span className="text-sm text-gray-600">
-                {format(parseISO(comment.timestamp), "MMM dd, HH:mm")}
+                {comment.score} upvotes
               </span>
             </div>
           </div>
@@ -79,14 +91,14 @@ function CommentItem({ comment, depth = 0 }: CommentItemProps) {
           {comment.sentiment && (
             <div
               className={`px-2 py-1 rounded-full text-xs font-medium ${getSentimentColor(
-                comment.sentiment.overall
+                comment.sentiment
               )}`}
             >
               <span className="mr-1">
-                {getSentimentIcon(comment.sentiment.overall)}
+                {getSentimentIcon(comment.sentiment)}
               </span>
-              {comment.sentiment.overall} (
-              {comment.sentiment.compound.toFixed(2)})
+              {comment.sentiment.label} (
+              {comment.sentiment.overall.compound.toFixed(2)})
             </div>
           )}
         </div>
@@ -149,8 +161,12 @@ function CommentItem({ comment, depth = 0 }: CommentItemProps) {
       {/* Replies */}
       {hasReplies && isExpanded && (
         <div className="space-y-2">
-          {comment.replies.map((reply) => (
-            <CommentItem key={reply.id} comment={reply} depth={depth + 1} />
+          {comment.replies.map((reply, replyIndex) => (
+            <CommentItem
+              key={reply.id || `reply-${replyIndex}`}
+              comment={reply}
+              depth={depth + 1}
+            />
           ))}
         </div>
       )}
@@ -163,24 +179,28 @@ export default function DiscussionsList({ discussions }: DiscussionsListProps) {
     null
   );
   const [sortBy, setSortBy] = useState<"timestamp" | "score" | "comments">(
-    "timestamp"
+    "timestamp" // Default to sorting by timestamp since it's now available
   );
 
   const sortedDiscussions = [...discussions].sort((a, b) => {
     switch (sortBy) {
       case "timestamp":
-        return (
-          new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-        );
+        // Parse timestamps and sort newest first
+        const dateA = a.timestamp ? new Date(a.timestamp).getTime() : 0;
+        const dateB = b.timestamp ? new Date(b.timestamp).getTime() : 0;
+        return dateB - dateA;
       case "comments":
         return b.comments.length - a.comments.length;
+      case "score":
+        return b.score - a.score;
       default:
         return 0;
     }
   });
 
-  const getSentimentColor = (sentiment?: string) => {
-    switch (sentiment) {
+  const getSentimentColor = (sentiment?: SentimentAnalysis) => {
+    if (!sentiment) return "text-gray-600 bg-gray-50 border-gray-200";
+    switch (sentiment.label) {
       case "positive":
         return "text-green-600 bg-green-50 border-green-200";
       case "negative":
@@ -215,12 +235,15 @@ export default function DiscussionsList({ discussions }: DiscussionsListProps) {
 
       {/* Discussions */}
       <div className="space-y-4">
-        {sortedDiscussions.map((discussion) => {
-          const isExpanded = expandedDiscussion === discussion.id;
+        {sortedDiscussions.map((discussion, index) => {
+          // Use URL or index as unique key since id might not exist
+          const discussionKey =
+            discussion.id || discussion.url || `discussion-${index}`;
+          const isExpanded = expandedDiscussion === discussionKey;
           const commentCount = discussion.comments.length;
 
           return (
-            <div key={discussion.id} className="card">
+            <div key={discussionKey} className="card">
               {/* Discussion Header */}
               <div className="flex items-start justify-between mb-4">
                 <div className="flex-1">
@@ -230,14 +253,28 @@ export default function DiscussionsList({ discussions }: DiscussionsListProps) {
 
                   <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600">
                     <div className="flex items-center space-x-1">
-                      <Clock className="h-4 w-4" />
-                      <span>
-                        {format(parseISO(discussion.timestamp), "PPp")}
+                      <span className="font-medium">
+                        r/{discussion.subreddit}
                       </span>
                     </div>
+                    {discussion.timestamp && (
+                      <div className="flex items-center space-x-1">
+                        <Clock className="h-4 w-4" />
+                        <span>
+                          {format(
+                            parseISO(discussion.timestamp),
+                            "MMM d, yyyy"
+                          )}
+                        </span>
+                      </div>
+                    )}
                     <div className="flex items-center space-x-1">
                       <MessageSquare className="h-4 w-4" />
                       <span>{commentCount} comments</span>
+                    </div>
+                    <div className="flex items-center space-x-1">
+                      <ThumbsUp className="h-4 w-4" />
+                      <span>{discussion.score} score</span>
                     </div>
                     <a
                       href={discussion.url}
@@ -254,11 +291,11 @@ export default function DiscussionsList({ discussions }: DiscussionsListProps) {
                 {discussion.sentiment && (
                   <div
                     className={`px-3 py-1 rounded-full text-sm font-medium border ${getSentimentColor(
-                      discussion.sentiment.overall
+                      discussion.sentiment
                     )}`}
                   >
-                    {discussion.sentiment.overall} (
-                    {discussion.sentiment.compound.toFixed(2)})
+                    {discussion.sentiment.label} (
+                    {discussion.sentiment.overall.compound.toFixed(2)})
                   </div>
                 )}
               </div>
@@ -292,7 +329,7 @@ export default function DiscussionsList({ discussions }: DiscussionsListProps) {
               {commentCount > 0 && (
                 <button
                   onClick={() =>
-                    setExpandedDiscussion(isExpanded ? null : discussion.id)
+                    setExpandedDiscussion(isExpanded ? null : discussionKey)
                   }
                   className="flex items-center space-x-2 text-blue-600 hover:text-blue-800 font-medium"
                 >
@@ -310,8 +347,11 @@ export default function DiscussionsList({ discussions }: DiscussionsListProps) {
               {/* Comments */}
               {isExpanded && commentCount > 0 && (
                 <div className="mt-6 space-y-3">
-                  {discussion.comments.map((comment) => (
-                    <CommentItem key={comment.id} comment={comment} />
+                  {discussion.comments.map((comment, commentIndex) => (
+                    <CommentItem
+                      key={comment.id || `comment-${commentIndex}`}
+                      comment={comment}
+                    />
                   ))}
                 </div>
               )}

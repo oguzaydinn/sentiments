@@ -80,7 +80,7 @@ export async function getCachedAnalysis(
 }
 
 /**
- * Save Reddit comment data to database only
+ * Save Reddit comment data to database
  */
 export async function saveRedditData(data: RedditData): Promise<string> {
   try {
@@ -108,14 +108,13 @@ export async function saveRedditData(data: RedditData): Promise<string> {
 }
 
 /**
- * Save consolidated analysis with entity data
+ * Save consolidated analysis with entity data from multiple subreddits
  */
 export async function saveConsolidatedAnalysis(
   consolidatedData: RedditData,
   entityAnalyses: SubredditEntityAnalysis[] = []
 ): Promise<string> {
   try {
-    // Prepare entity analysis data
     let entityAnalysisData = null;
     if (entityAnalyses.length > 0) {
       const allEntityChains = entityAnalyses.flatMap(
@@ -123,6 +122,7 @@ export async function saveConsolidatedAnalysis(
       );
       const entityMap = new Map();
 
+      // Consolidate entities by type and normalized text
       for (const chain of allEntityChains) {
         const key = `${chain.entity.type}:${chain.entity.normalizedText}`;
         if (!entityMap.has(key)) {
@@ -170,7 +170,6 @@ export async function saveConsolidatedAnalysis(
       };
     }
 
-    // Save main analysis
     const analysis = await prisma.redditAnalysis.create({
       data: {
         subreddit: consolidatedData.subreddit,
@@ -187,7 +186,7 @@ export async function saveConsolidatedAnalysis(
       },
     });
 
-    // Save individual entity chains if available
+    // Save individual entity chains for detailed analysis
     if (entityAnalysisData?.entityChains) {
       await prisma.entityChain.createMany({
         data: entityAnalysisData.entityChains.map((chain: any) => ({

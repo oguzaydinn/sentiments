@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
+import { serveStatic } from "hono/bun";
 import { fetchComments, initializeReddit } from "./reddit";
 import { categories, type Category } from "./types/categories";
 import type { RedditData } from "./types/reddit";
@@ -13,23 +14,28 @@ import {
   cleanupOldAnalyses,
 } from "./storage";
 
-// Initialize Hono app
 const app = new Hono();
 
-// Initialize NER service
 let nerService: NERService | null = null;
 
-// Middleware
 app.use("*", logger());
+
+// Configure CORS based on environment
 app.use(
   "*",
   cors({
-    origin: ["http://localhost:3000", "http://localhost:5173"],
+    origin:
+      process.env.NODE_ENV === "production"
+        ? "*"
+        : [
+            "http://localhost:3000",
+            "http://localhost:5173",
+            "http://localhost:3001",
+          ],
     credentials: true,
   })
 );
 
-// Health check
 app.get("/health", (c) => {
   return c.json({
     status: "OK",
@@ -38,7 +44,6 @@ app.get("/health", (c) => {
   });
 });
 
-// Simple test endpoint
 app.get("/api/test", (c) => {
   return c.json({
     success: true,
@@ -51,9 +56,8 @@ app.get("/api/test", (c) => {
   });
 });
 
-// Helper function to transform Reddit data into network structure
+// Transform Reddit data into network structure with entity analysis consolidation
 async function buildNetworkData(data: RedditData, entityAnalyses: any[] = []) {
-  // Calculate comment count recursively
   const countComments = (comments: any[]): number => {
     return comments.reduce((count, comment) => {
       return count + 1 + countComments(comment.replies || []);
@@ -63,7 +67,6 @@ async function buildNetworkData(data: RedditData, entityAnalyses: any[] = []) {
   // Consolidate entity analyses from all subreddits
   let consolidatedEntityAnalysis = null;
   if (entityAnalyses.length > 0) {
-    // Merge all entity chains from different subreddits
     const allEntityChains = entityAnalyses.flatMap(
       (analysis) => analysis.entityChains
     );
@@ -117,11 +120,10 @@ async function buildNetworkData(data: RedditData, entityAnalyses: any[] = []) {
     };
   }
 
-  // Transform discussions to include required fields
   const transformedDiscussions = data.discussions.map((discussion, index) => {
     const commentCount = countComments(discussion.comments);
 
-    // Calculate weighted sentiment if available
+    // Calculate weighted sentiment using comment scores
     const commentSentiments = discussion.comments
       .filter((c) => c.sentiment)
       .map((c) => ({
@@ -137,14 +139,11 @@ async function buildNetworkData(data: RedditData, entityAnalyses: any[] = []) {
 
     return {
       ...discussion,
-      // The subreddit field is now available from the discussion object
-      score: 0, // Default score since we don't have post scores yet
       commentCount,
       weightedSentiment,
     };
   });
 
-  // Extract unique subreddits from discussions
   const uniqueSubreddits = [
     ...new Set(transformedDiscussions.map((d) => (d as any).subreddit)),
   ];
@@ -166,7 +165,7 @@ async function buildNetworkData(data: RedditData, entityAnalyses: any[] = []) {
       links: [],
       centerNode: { id: "query", label: data.query, type: "query" },
     },
-    entities: consolidatedEntityAnalysis?.entityChains.slice(0, 20) || [], // Top 20 entities overall
+    entities: consolidatedEntityAnalysis?.entityChains.slice(0, 20) || [],
     entityAnalysis: consolidatedEntityAnalysis
       ? {
           query: consolidatedEntityAnalysis.query,
@@ -175,13 +174,13 @@ async function buildNetworkData(data: RedditData, entityAnalyses: any[] = []) {
           totalMentions: consolidatedEntityAnalysis.totalMentions,
           totalScore: consolidatedEntityAnalysis.totalScore,
           entityBreakdown: consolidatedEntityAnalysis.entityBreakdown,
-          entityChains: consolidatedEntityAnalysis.entityChains.slice(0, 10), // Top 10 for detailed analysis
+          entityChains: consolidatedEntityAnalysis.entityChains.slice(0, 10),
         }
       : undefined,
   };
 }
 
-// Main analysis endpoint
+// Main analysis endpoint with caching and entity support
 app.post("/api/analyze", async (c) => {
   try {
     const body = await c.req.json();
@@ -207,7 +206,6 @@ app.post("/api/analyze", async (c) => {
     if (cachedResult) {
       console.log(`🎯 Returning cached result for "${query}"`);
 
-      // Transform cached data to network structure
       const networkData = await buildNetworkData(
         {
           subreddit: cachedResult.discussions
@@ -237,10 +235,8 @@ app.post("/api/analyze", async (c) => {
       });
     }
 
-    // No cache found, proceed with fresh analysis
     console.log(`🔄 No cache found, fetching fresh data for "${query}"`);
 
-    // Validate category
     if (!categories[category as Category]) {
       return c.json(
         {
@@ -254,24 +250,21 @@ app.post("/api/analyze", async (c) => {
     }
 
     try {
-      // Initialize Reddit client
       const reddit = await initializeReddit();
 
-      // Initialize NER service if entities are requested and not already initialized
+      // Initialize NER service if entities are requested
       if (includeEntities && !nerService) {
         console.log("🤖 Initializing NER service for entity analysis...");
         nerService = new NERService();
         await nerService.initialize();
       }
 
-      // Get subreddits for category
       const subreddits = categories[category as Category];
       const allData: RedditData[] = [];
-
-      // Process all subreddits in the category for comprehensive results
       const subredditsToProcess = subreddits;
       const allEntityAnalyses: any[] = [];
 
+      // Process all subreddits in the category
       for (const subreddit of subredditsToProcess) {
         try {
           console.log(`📱 Processing r/${subreddit}...`);
@@ -283,11 +276,10 @@ app.post("/api/analyze", async (c) => {
             category,
             timeframe as any,
             minPostScore,
-            5 // Limit posts per subreddit for faster response
+            5
           );
 
           if (data) {
-            // Process entities for this individual subreddit if requested
             if (includeEntities && nerService) {
               try {
                 console.log(
@@ -310,7 +302,6 @@ app.post("/api/analyze", async (c) => {
           }
         } catch (error) {
           console.error(`Error processing r/${subreddit}:`, error);
-          // Continue with other subreddits
         }
       }
 
@@ -324,11 +315,11 @@ app.post("/api/analyze", async (c) => {
         );
       }
 
-      // Merge all data into a single structure, preserving subreddit info for each discussion
+      // Merge all data preserving subreddit info for each discussion
       const allDiscussions = allData.flatMap((subredditData) =>
         subredditData.discussions.map((discussion) => ({
           ...discussion,
-          subreddit: subredditData.subreddit, // Preserve the original subreddit for each discussion
+          subreddit: subredditData.subreddit,
         }))
       );
 
@@ -353,7 +344,6 @@ app.post("/api/analyze", async (c) => {
         discussions: allDiscussions,
       };
 
-      // Transform to network structure
       const networkData = await buildNetworkData(
         consolidatedData,
         allEntityAnalyses
@@ -403,7 +393,6 @@ app.post("/api/analyze", async (c) => {
   }
 });
 
-// Get available categories
 app.get("/api/categories", (c) => {
   return c.json({
     success: true,
@@ -415,7 +404,6 @@ app.get("/api/categories", (c) => {
   });
 });
 
-// Get recent queries
 app.get("/api/recent", async (c) => {
   try {
     const limit = Number(c.req.query("limit")) || 10;
@@ -437,7 +425,6 @@ app.get("/api/recent", async (c) => {
   }
 });
 
-// Get analysis by ID
 app.get("/api/analysis/:id", async (c) => {
   try {
     const id = c.req.param("id");
@@ -453,7 +440,6 @@ app.get("/api/analysis/:id", async (c) => {
       );
     }
 
-    // Transform to network structure
     const networkData = await buildNetworkData(
       {
         subreddit: analysis.discussions.map((d: any) => d.subreddit).join(", "),
@@ -491,7 +477,6 @@ app.get("/api/analysis/:id", async (c) => {
   }
 });
 
-// Cleanup old analyses (can be called manually or via cron)
 app.post("/api/cleanup", async (c) => {
   try {
     const deletedCount = await cleanupOldAnalyses();
@@ -512,7 +497,16 @@ app.post("/api/cleanup", async (c) => {
   }
 });
 
-// Start server
+// Serve static files from the public directory - must come AFTER all API routes
+app.use("/*", serveStatic({ root: "./public" }));
+
+// Serve index.html for all non-API routes (SPA routing)
+app.notFound(async (c) => {
+  const file = Bun.file("./public/index.html");
+  const content = await file.text();
+  return c.html(content);
+});
+
 const port = process.env.PORT || 3001;
 
 console.log(`🚀 Reddit Sentiment Network API starting on port ${port}`);
@@ -525,10 +519,11 @@ console.log(`   GET  /api/analysis/:id - Get analysis by ID`);
 console.log(`   POST /api/analyze - Start Reddit analysis`);
 console.log(`   POST /api/cleanup - Cleanup old analyses`);
 console.log(
-  `🔗 CORS enabled for: http://localhost:3000, http://localhost:5173`
+  process.env.NODE_ENV === "production"
+    ? `🔗 CORS enabled for: all origins (production mode)`
+    : `🔗 CORS enabled for: http://localhost:3000, http://localhost:5173`
 );
 
-// Start the server
 Bun.serve({
   port: Number(port),
   fetch: app.fetch,

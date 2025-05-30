@@ -2,6 +2,12 @@ import { useState, useEffect } from "react";
 import { Clock, MessageSquare, Users, Search } from "lucide-react";
 import { format, parseISO } from "date-fns";
 
+// Get API base URL from environment or default to relative path
+const API_BASE_URL =
+  import.meta.env.VITE_API_URL === ""
+    ? "" // Use relative paths when explicitly set to empty string
+    : import.meta.env.VITE_API_URL || "http://localhost:3001";
+
 interface RecentQuery {
   id: string;
   query: string;
@@ -27,7 +33,7 @@ export default function RecentQueries({ onLoadQuery }: RecentQueriesProps) {
   const fetchRecentQueries = async () => {
     try {
       setLoading(true);
-      const response = await fetch("http://localhost:3001/api/recent?limit=10");
+      const response = await fetch(`${API_BASE_URL}/api/recent?limit=10`);
       const result = await response.json();
 
       if (result.success) {

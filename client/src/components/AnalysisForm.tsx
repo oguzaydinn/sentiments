@@ -1,11 +1,7 @@
 import { useState } from "react";
-import { Search, Clock, Filter, Zap, Target } from "lucide-react";
-import type {
-  AnalysisRequest,
-  AnalysisResult,
-  AnalysisJob,
-} from "../types/analysis";
-import { analyzeRedditData, checkJobStatus } from "../services/api";
+import { Search, Clock, Zap, Target } from "lucide-react";
+import type { AnalysisRequest, AnalysisResult } from "../types/analysis";
+import { analyzeRedditData } from "../services/api";
 
 interface AnalysisFormProps {
   onAnalysisStart: () => void;
@@ -46,9 +42,6 @@ export default function AnalysisForm({
     minPostScore: 50,
     includeEntities: true,
   });
-
-  const [jobId, setJobId] = useState<string | null>(null);
-  const [progress, setProgress] = useState(0);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -91,48 +84,6 @@ export default function AnalysisForm({
         data: {} as any,
       });
     }
-  };
-
-  const pollJobStatus = async (jobId: string) => {
-    const pollInterval = setInterval(async () => {
-      try {
-        const job: AnalysisJob = await checkJobStatus(jobId);
-
-        setProgress(job.progress);
-
-        if (job.status === "completed" && job.data) {
-          clearInterval(pollInterval);
-          onAnalysisComplete({
-            success: true,
-            cached: false,
-            data: job.data,
-          });
-          setJobId(null);
-          setProgress(0);
-        } else if (job.status === "failed") {
-          clearInterval(pollInterval);
-          alert(`Analysis failed: ${job.message || "Unknown error"}`);
-          onAnalysisComplete({
-            success: false,
-            cached: false,
-            data: {} as any,
-          });
-          setJobId(null);
-          setProgress(0);
-        }
-      } catch (error) {
-        console.error("Error checking job status:", error);
-        clearInterval(pollInterval);
-        alert("Error checking analysis status");
-        onAnalysisComplete({
-          success: false,
-          cached: false,
-          data: {} as any,
-        });
-        setJobId(null);
-        setProgress(0);
-      }
-    }, 2000); // Poll every 2 seconds
   };
 
   const handleInputChange = (field: keyof AnalysisRequest, value: any) => {
@@ -291,17 +242,13 @@ export default function AnalysisForm({
         </div>
 
         {/* Progress Bar */}
-        {isLoading && jobId && (
+        {isLoading && (
           <div className="space-y-2">
             <div className="flex justify-between text-sm text-gray-600">
               <span>Building Network...</span>
-              <span>{progress}%</span>
             </div>
             <div className="w-full bg-gray-200 rounded-full h-2">
-              <div
-                className="bg-primary-600 h-2 rounded-full transition-all duration-300"
-                style={{ width: `${progress}%` }}
-              ></div>
+              <div className="bg-primary-600 h-2 rounded-full transition-all duration-300"></div>
             </div>
           </div>
         )}

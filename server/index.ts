@@ -1,7 +1,7 @@
 import { fetchComments, saveToFile, initializeReddit } from "./reddit";
 import { categories, type Category } from "./types/categories";
 import { NERService } from "./ner";
-import { saveEntityAnalysis, saveEntityVisualizationData } from "./storage";
+import { saveEntityAnalysis } from "./storage";
 
 const timeFilters = ["hour", "day", "week", "month", "year", "all"] as const;
 type TimeFilter = (typeof timeFilters)[number];
@@ -65,7 +65,6 @@ async function run() {
   const reddit = await initializeReddit();
   let nerService: NERService | null = null;
 
-  // Initialize NER service if entity analysis is enabled
   if (enableEntityAnalysis) {
     console.log("🤖 Initializing compromise.js NER service...");
     nerService = new NERService();
@@ -87,7 +86,6 @@ async function run() {
       );
 
       if (data) {
-        // Save original comment data
         await saveToFile(data);
 
         // Perform entity analysis if enabled
@@ -97,14 +95,10 @@ async function run() {
           try {
             const entityAnalysis = await nerService.analyzeEntities(data);
 
-            // Update the data with entity analysis
             data.entityAnalysis = entityAnalysis;
 
-            // Save entity analysis using consolidated storage
             await saveEntityAnalysis(entityAnalysis);
-            await saveEntityVisualizationData(entityAnalysis);
 
-            // Log summary
             console.log(`✅ Entity analysis completed for r/${subreddit}:`);
             console.log(
               `   📊 Found ${entityAnalysis.totalEntities} unique entities`
@@ -116,7 +110,6 @@ async function run() {
               `   👤 ${entityAnalysis.entityBreakdown.persons} persons, 🏢 ${entityAnalysis.entityBreakdown.organizations} organizations, 📍 ${entityAnalysis.entityBreakdown.locations} locations`
             );
 
-            // Show top entities by score (simplified)
             const topChains = entityAnalysis.entityChains.slice(0, 3);
             if (topChains.length > 0) {
               console.log(

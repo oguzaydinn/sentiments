@@ -6,11 +6,14 @@ import type {
 } from "../types/analysis";
 
 // Configure axios defaults
-const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3001";
+const API_BASE_URL =
+  import.meta.env.VITE_API_URL === ""
+    ? "" // Use relative paths when explicitly set to empty string
+    : import.meta.env.VITE_API_URL || "http://localhost:3001";
 
 const api = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 60000, // 60 seconds for Reddit analysis
+  timeout: 120000,
   headers: {
     "Content-Type": "application/json",
   },

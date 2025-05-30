@@ -51,7 +51,7 @@ export default function EntityBreakdown({ analysis }: EntityBreakdownProps) {
       acc[type].count++;
       acc[type].totalMentions += chain.totalMentions;
       acc[type].totalScore += chain.totalScore;
-      acc[type].avgSentiment += chain.averageSentiment.compound;
+      acc[type].avgSentiment += chain.averageSentiment.overall.compound;
       acc[type].entities.push(chain);
 
       return acc;
@@ -265,9 +265,23 @@ export default function EntityBreakdown({ analysis }: EntityBreakdownProps) {
                       <span className="truncate flex-1 mr-2">
                         {entity.entity.text}
                       </span>
-                      <span className="font-medium">
-                        {entity.totalMentions}
-                      </span>
+                      <div className="flex items-center space-x-2">
+                        <span className="font-medium">
+                          {entity.totalMentions}
+                        </span>
+                        <span
+                          className={`text-xs font-medium ${
+                            entity.averageSentiment.overall.compound > 0
+                              ? "text-green-600"
+                              : entity.averageSentiment.overall.compound < 0
+                              ? "text-red-600"
+                              : "text-gray-600"
+                          }`}
+                        >
+                          ({entity.averageSentiment.overall.compound.toFixed(2)}
+                          )
+                        </span>
+                      </div>
                     </div>
                   ))}
               </div>

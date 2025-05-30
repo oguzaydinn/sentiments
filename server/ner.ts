@@ -8,7 +8,6 @@ import type {
 } from "./types/entities";
 import type { RedditComment, RedditData, Discussion } from "./types/reddit";
 
-// Define the sentiment structure used in this file to match the current app structure
 interface EntitySentimentAnalysis {
   original: {
     neg: number;
@@ -28,7 +27,7 @@ interface EntitySentimentAnalysis {
 interface EntityMention {
   entity: Entity;
   sentiment: EntitySentimentAnalysis;
-  score: number; // Comment upvote score
+  score: number;
   timestamp: string;
   postId: string;
 }
@@ -36,9 +35,7 @@ interface EntityMention {
 export class NERService {
   private initialized: boolean = false;
 
-  constructor() {
-    // compromise.js works out of the box, no setup needed
-  }
+  constructor() {}
 
   /**
    * Initialize the NER service
@@ -48,7 +45,6 @@ export class NERService {
 
     try {
       console.log("Initializing compromise.js NER service...");
-      // compromise.js is ready to use immediately
       this.initialized = true;
       console.log("✅ Compromise.js NER service initialized successfully");
     } catch (error) {
@@ -69,7 +65,6 @@ export class NERService {
       const doc = nlp(text);
       const entities: Entity[] = [];
 
-      // Extract people using compromise's built-in people recognition
       const people = doc.people().json();
       for (const person of people) {
         if (person.text && person.text.length > 2) {
@@ -77,7 +72,7 @@ export class NERService {
             text: person.text,
             normalizedText: this.normalizeEntityText(person.text),
             type: "PERSON",
-            confidence: 0.8, // compromise is generally reliable for people
+            confidence: 0.8,
             startIndex: person.offset?.start || 0,
             endIndex:
               person.offset?.start + person.text.length || person.text.length,
@@ -85,7 +80,6 @@ export class NERService {
         }
       }
 
-      // Extract places using compromise's built-in place recognition
       const places = doc.places().json();
       for (const place of places) {
         if (place.text && place.text.length > 2) {
@@ -101,11 +95,9 @@ export class NERService {
         }
       }
 
-      // Extract organizations using proper nouns and known patterns
       const organizations = this.extractOrganizations(doc);
       entities.push(...organizations);
 
-      // Deduplicate entities
       const deduplicatedEntities = this.deduplicateEntities(entities);
 
       return deduplicatedEntities;
@@ -116,12 +108,11 @@ export class NERService {
   }
 
   /**
-   * Extract organizations from compromise doc
+   * Extract organizations from compromise doc using patterns and proper nouns
    */
   private extractOrganizations(doc: any): Entity[] {
     const entities: Entity[] = [];
 
-    // Get organizations using compromise's organization detection
     const orgs = doc.organizations().json();
     for (const org of orgs) {
       if (org.text && org.text.length > 2) {
@@ -136,13 +127,13 @@ export class NERService {
       }
     }
 
-    // Also look for common organization patterns in proper nouns
+    // Look for organization patterns in proper nouns
     const properNouns = doc.match("#ProperNoun+").json();
     for (const noun of properNouns) {
       const text = noun.text;
       if (!text || text.length < 3) continue;
 
-      // Skip if already captured as person or place
+      // Skip if already captured as person, place, or org
       const isPersonOrPlace =
         doc
           .people()
@@ -156,7 +147,6 @@ export class NERService {
 
       if (isPersonOrPlace) continue;
 
-      // Check for organization patterns
       if (this.isLikelyOrganization(text)) {
         entities.push({
           text: text,
@@ -173,7 +163,7 @@ export class NERService {
   }
 
   /**
-   * Check if a text is likely an organization
+   * Check if text matches organization patterns
    */
   private isLikelyOrganization(text: string): boolean {
     const orgPatterns = [
@@ -216,7 +206,7 @@ export class NERService {
   }
 
   /**
-   * Analyze sentiment for entities in context
+   * Analyze sentiment for entities within their text context
    */
   private analyzeEntitySentiment(
     entity: Entity,

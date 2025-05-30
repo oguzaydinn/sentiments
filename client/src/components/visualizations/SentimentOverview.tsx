@@ -1,16 +1,4 @@
-import {
-  PieChart,
-  Pie,
-  Cell,
-  ResponsiveContainer,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-} from "recharts";
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 import { TrendingUp, TrendingDown, Minus } from "lucide-react";
 import type { AnalysisResult } from "../../types/analysis";
 
@@ -75,11 +63,12 @@ export default function SentimentOverview({
 
       acc.push({
         title: discussion.title.slice(0, 30) + "...",
+        fullTitle: discussion.title,
         sentiment: weightedSentiment,
       });
     }
     return acc;
-  }, [] as Array<{ title: string; sentiment: number }>);
+  }, [] as Array<{ title: string; fullTitle: string; sentiment: number }>);
 
   const overallSentiment =
     totalSentiments > 0
@@ -222,7 +211,7 @@ export default function SentimentOverview({
             {avgSentiment.length > 0 && (
               <div className="mt-6">
                 <h4 className="text-sm font-medium text-gray-700 mb-2">
-                  Discussion Sentiment
+                  Top Discussions
                 </h4>
                 <div className="space-y-2 max-h-32 overflow-y-auto">
                   {avgSentiment
@@ -234,6 +223,7 @@ export default function SentimentOverview({
                       <div
                         key={index}
                         className="flex items-center justify-between text-xs"
+                        title={item.fullTitle}
                       >
                         <span className="text-gray-600 truncate flex-1 mr-2">
                           {item.title}
