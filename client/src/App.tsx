@@ -83,11 +83,7 @@ function App() {
     setCurrentAnalysis(null);
   };
 
-  const handleLoadCachedQuery = async (
-    id: string,
-    query: string,
-    category: string
-  ) => {
+  const handleLoadCachedQuery = async (id: string) => {
     setIsLoading(true);
     try {
       const response = await fetch(`${API_BASE_URL}/api/analysis/${id}`);
